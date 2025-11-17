@@ -8,6 +8,7 @@ from typing import Optional
 import re
 import time
 import random
+import os
 from urllib.parse import urlparse, urljoin, parse_qs
 
 
@@ -289,6 +290,7 @@ class NaverCrawler:
                 blog_title = None
                 
                 # 방법 1: api_txt_lines 클래스를 가진 요소 찾기
+                
                 title_elem = link.find(['a', 'span', 'strong', 'b'], class_=lambda x: x and 'api_txt_lines' in str(x))
                 if title_elem:
                     blog_title = title_elem.get_text(strip=True)
@@ -512,3 +514,164 @@ class NaverCrawler:
             import traceback
             traceback.print_exc()
             return 0
+    
+    def extract_blog_body_text(self, url: str) -> Optional[str]:
+        """
+        블로그 글의 본문 텍스트를 추출합니다.
+        
+        Args:
+            url: 블로그 글 URL
+            
+        Returns:
+            추출된 본문 텍스트 (없으면 None)
+        """
+        try:
+            page = self._fetch_blog_page(url)
+            if not page:
+                print("[ERROR] 블로그 페이지를 가져올 수 없습니다.")
+                return None
+            
+            soup = page['soup']
+            body_text_parts = []
+            
+            # 방법 1: se-main-container 클래스를 가진 요소에서 텍스트 추출
+            containers = soup.find_all(class_=lambda x: x and 'se-main-container' in str(x))
+            if containers:
+                print(f"[INFO] se-main-container 요소에서 본문 추출 중... ({len(containers)}개)")
+                for container in containers:
+                    # se-component-text, se-text-paragraph 등 텍스트 요소 찾기
+                    text_elements = container.find_all(class_=lambda x: x and any(
+                        keyword in str(x).lower() for keyword in ['se-text', 'se-component-text', 'se-paragraph']
+                    ))
+                    for elem in text_elements:
+                        text = elem.get_text(separator='\n', strip=True)
+                        if text and len(text.strip()) > 0:
+                            body_text_parts.append(text)
+                    
+                    # 텍스트 요소를 찾지 못했으면 직접 텍스트 추출
+                    if not text_elements:
+                        text = container.get_text(separator='\n', strip=True)
+                        if text and len(text.strip()) > 0:
+                            body_text_parts.append(text)
+            
+            # 방법 2: post-view{글ID} div에서 텍스트 추출
+            if not body_text_parts:
+                post_view_divs = soup.find_all('div', id=lambda x: x and 'post-view' in str(x).lower())
+                if post_view_divs:
+                    print(f"[INFO] post-view div 요소에서 본문 추출 중... ({len(post_view_divs)}개)")
+                    for div in post_view_divs:
+                        text = div.get_text(separator='\n', strip=True)
+                        if text and len(text.strip()) > 0:
+                            body_text_parts.append(text)
+            
+            # 방법 3: 본문 영역으로 보이는 div 찾기 (class나 id 패턴)
+            if not body_text_parts:
+                body_selectors = [
+                    {'id': lambda x: x and 'post' in str(x).lower()},
+                    {'class': lambda x: x and 'post' in str(x).lower()},
+                    {'class': lambda x: x and 'content' in str(x).lower()},
+                    {'class': lambda x: x and 'article' in str(x).lower()},
+                ]
+                
+                for selector in body_selectors:
+                    elements = soup.find_all('div', **selector)
+                    if elements:
+                        print(f"[INFO] 본문 영역 요소에서 텍스트 추출 중... ({len(elements)}개)")
+                        for elem in elements:
+                            text = elem.get_text(separator='\n', strip=True)
+                            if text and len(text.strip()) > 20:  # 최소 길이 체크
+                                body_text_parts.append(text)
+                                break
+                        if body_text_parts:
+                            break
+            
+            # 방법 4: 전체 body에서 스크립트, 스타일, nav 등 제거하고 본문 추출
+            if not body_text_parts:
+                # 스크립트, 스타일, 메타 태그 등 제거
+                for script in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+                    script.decompose()
+                
+                body = soup.find('body')
+                if body:
+                    text = body.get_text(separator='\n', strip=True)
+                    # 너무 짧은 라인 제거
+                    lines = [line.strip() for line in text.split('\n') if line.strip() and len(line.strip()) > 5]
+                    if lines:
+                        body_text_parts.append('\n'.join(lines))
+            
+            if body_text_parts:
+                # 중복 제거 및 정리
+                final_text = '\n\n'.join(body_text_parts)
+                # 연속된 빈 줄 정리
+                final_text = re.sub(r'\n{3,}', '\n\n', final_text)
+                return final_text.strip()
+            else:
+                print("[WARN] 본문 텍스트를 찾을 수 없습니다.")
+                return None
+                
+        except Exception as e:
+            print(f"[ERROR] 본문 텍스트 추출 실패 ({url}): {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def save_blog_to_txt(self, url: str, output_path: str = None, title: str = None) -> Optional[str]:
+        """
+        블로그 글의 본문 텍스트를 txt 파일로 저장합니다.
+        
+        Args:
+            url: 블로그 글 URL
+            output_path: 저장할 파일 경로 (None이면 자동 생성)
+            title: 파일 제목에 포함할 제목 (선택사항)
+            
+        Returns:
+            저장된 파일 경로 (실패하면 None)
+        """
+        try:
+            # 본문 텍스트 추출
+            body_text = self.extract_blog_body_text(url)
+            if not body_text:
+                print("[ERROR] 본문 텍스트를 추출할 수 없습니다.")
+                return None
+            
+            # 출력 경로 생성
+            if not output_path:
+                # URL에서 파일명 생성
+                parsed = urlparse(url)
+                path_parts = [p for p in parsed.path.strip('/').split('/') if p]
+                
+                if path_parts:
+                    filename = f"blog_{path_parts[-1]}.txt"
+                else:
+                    # 쿼리 파라미터에서 추출
+                    query_params = parse_qs(parsed.query)
+                    if 'logNo' in query_params:
+                        filename = f"blog_{query_params['logNo'][0]}.txt"
+                    else:
+                        filename = f"blog_{int(time.time())}.txt"
+                
+                output_path = filename
+            
+            # 디렉토리가 없으면 생성
+            output_dir = os.path.dirname(output_path) if os.path.dirname(output_path) else '.'
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+            
+            # 파일 저장
+            with open(output_path, 'w', encoding='utf-8') as f:
+                # 제목이 제공되면 헤더에 포함
+                if title:
+                    f.write(f"제목: {title}\n")
+                    f.write(f"URL: {url}\n")
+                    f.write("=" * 80 + "\n\n")
+                
+                f.write(body_text)
+            
+            print(f"[INFO] 본문 텍스트가 저장되었습니다: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            print(f"[ERROR] txt 파일 저장 실패 ({url}): {e}")
+            import traceback
+            traceback.print_exc()
+            return None
