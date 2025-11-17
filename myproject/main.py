@@ -2,8 +2,8 @@
 메인 모듈
 """
 
-from .naver_crawler import NaverCrawler
-# from .keyword_extractor import KeywordExtractor
+from naver_crawler import NaverCrawler
+# from keyword_extractor import KeywordExtractor
 
 
 def main():

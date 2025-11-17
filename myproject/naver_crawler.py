@@ -543,13 +543,15 @@ class NaverCrawler:
                     text_elements = container.find_all(class_=lambda x: x and any(
                         keyword in str(x).lower() for keyword in ['se-text', 'se-component-text', 'se-paragraph']
                     ))
-                    for elem in text_elements:
-                        text = elem.get_text(separator='\n', strip=True)
-                        if text and len(text.strip()) > 0:
-                            body_text_parts.append(text)
                     
-                    # 텍스트 요소를 찾지 못했으면 직접 텍스트 추출
-                    if not text_elements:
+                    if text_elements:
+                        # 텍스트 요소를 찾았으면 각 요소에서만 추출 (container 전체는 제외하여 중복 방지)
+                        for elem in text_elements:
+                            text = elem.get_text(separator='\n', strip=True)
+                            if text and len(text.strip()) > 0:
+                                body_text_parts.append(text)
+                    else:
+                        # 텍스트 요소를 찾지 못했으면 직접 텍스트 추출
                         text = container.get_text(separator='\n', strip=True)
                         if text and len(text.strip()) > 0:
                             body_text_parts.append(text)
@@ -600,9 +602,26 @@ class NaverCrawler:
                         body_text_parts.append('\n'.join(lines))
             
             if body_text_parts:
-                # 중복 제거 및 정리
-                final_text = '\n\n'.join(body_text_parts)
-                # 연속된 빈 줄 정리
+                # 중복 제거: 줄 단위로 중복 제거
+                all_lines = []
+                seen_lines = set()
+                
+                for part in body_text_parts:
+                    lines = part.split('\n')
+                    for line in lines:
+                        line_stripped = line.strip()
+                        if line_stripped:
+                            # 정규화하여 비교 (공백 정리, 소문자 변환)
+                            normalized = re.sub(r'\s+', ' ', line_stripped.lower())
+                            if normalized and normalized not in seen_lines:
+                                all_lines.append(line)
+                                seen_lines.add(normalized)
+                        elif all_lines and all_lines[-1].strip():  # 빈 줄은 연속되지 않도록
+                            all_lines.append('')
+                
+                # 최종 텍스트 생성
+                final_text = '\n'.join(all_lines)
+                # 연속된 빈 줄 정리 (3개 이상 -> 2개로)
                 final_text = re.sub(r'\n{3,}', '\n\n', final_text)
                 return final_text.strip()
             else:
@@ -675,3 +694,4 @@ class NaverCrawler:
             import traceback
             traceback.print_exc()
             return None
+
