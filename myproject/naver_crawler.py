@@ -581,6 +581,7 @@ class NaverCrawler:
         se-module-image 내의 링크는 [링크 삽입]을 넣지 않고 [이미지 삽입]만 넣습니다.
         se-module-oglink 내의 링크는 [링크 삽입]을 넣습니다.
         se-module-sticker 내의 이미지는 [이모티콘 삽입]을 넣습니다.
+        각 마커는 인덱스 번호가 붙습니다 (예: [이미지 삽입1], [링크 삽입2]).
         
         Args:
             element: BeautifulSoup 요소
@@ -598,12 +599,18 @@ class NaverCrawler:
             # BeautifulSoup으로 파싱하여 모듈별로 처리
             soup = BeautifulSoup(element_html, 'lxml')
             
+            # 마커 인덱스 카운터 초기화
+            image_counter = 0
+            link_counter = 0
+            emoji_counter = 0
+            
             # se-module-sticker 모듈 처리: 이미지를 [이모티콘 삽입]으로, 링크는 마커 없이 제거
             sticker_modules = soup.find_all('div', class_=lambda x: x and 'se-module-sticker' in str(x))
             for sticker_module in sticker_modules:
-                # 이미지 태그를 [이모티콘 삽입]으로 교체
+                # 이미지 태그를 [이모티콘 삽입N]으로 교체
                 for img in sticker_module.find_all('img'):
-                    img.replace_with('[이모티콘 삽입]')
+                    emoji_counter += 1
+                    img.replace_with(f'[이모티콘 삽입{emoji_counter}]')
                 # 링크 태그는 제거 (링크 삽입 마커 없이)
                 for link in sticker_module.find_all('a'):
                     # 링크 내부의 텍스트가 있으면 유지, 없으면 제거
@@ -616,9 +623,10 @@ class NaverCrawler:
             # se-module-image 모듈 처리: 이미지만 [이미지 삽입]으로, 링크는 마커 없이 제거
             image_modules = soup.find_all('div', class_=lambda x: x and 'se-module-image' in str(x))
             for img_module in image_modules:
-                # 이미지 태그를 [이미지 삽입]으로 교체
+                # 이미지 태그를 [이미지 삽입N]으로 교체
                 for img in img_module.find_all('img'):
-                    img.replace_with('[이미지 삽입]')
+                    image_counter += 1
+                    img.replace_with(f'[이미지 삽입{image_counter}]')
                 # 링크 태그는 제거 (링크 삽입 마커 없이)
                 for link in img_module.find_all('a'):
                     # 링크 내부의 텍스트가 있으면 유지, 없으면 제거
@@ -628,11 +636,12 @@ class NaverCrawler:
                     else:
                         link.decompose()
             
-            # se-module-oglink 모듈 처리: 전체 모듈을 [링크 삽입] 하나로 교체 (텍스트는 제외)
+            # se-module-oglink 모듈 처리: 전체 모듈을 [링크 삽입N] 하나로 교체 (텍스트는 제외)
             oglink_modules = soup.find_all('div', class_=lambda x: x and 'se-module-oglink' in str(x))
             for oglink_module in oglink_modules:
-                # 전체 oglink 모듈을 [링크 삽입] 하나로 교체 (내부 텍스트는 모두 제거)
-                oglink_module.replace_with('[링크 삽입]')
+                # 전체 oglink 모듈을 [링크 삽입N] 하나로 교체 (내부 텍스트는 모두 제거)
+                link_counter += 1
+                oglink_module.replace_with(f'[링크 삽입{link_counter}]')
             
             # 나머지 이미지 태그 처리 (se-module-image, se-module-sticker가 아닌 곳의 이미지)
             for img in soup.find_all('img'):
@@ -642,7 +651,8 @@ class NaverCrawler:
                 parent_oglink_module = img.find_parent('div', class_=lambda x: x and 'se-module-oglink' in str(x))
                 
                 if not parent_sticker_module and not parent_img_module and not parent_oglink_module:
-                    img.replace_with('[이미지 삽입]')
+                    image_counter += 1
+                    img.replace_with(f'[이미지 삽입{image_counter}]')
             
             # 나머지 링크 태그 처리 (se-module-image, se-module-oglink, se-module-sticker가 아닌 곳의 링크)
             for link in soup.find_all('a'):
@@ -653,10 +663,11 @@ class NaverCrawler:
                 
                 if not parent_sticker_module and not parent_img_module and not parent_oglink_module:
                     link_text = link.get_text(strip=True)
+                    link_counter += 1
                     if link_text:
-                        link.replace_with(f"{link_text}\n[링크 삽입]")
+                        link.replace_with(f"{link_text}\n[링크 삽입{link_counter}]")
                     else:
-                        link.replace_with('[링크 삽입]')
+                        link.replace_with(f'[링크 삽입{link_counter}]')
             
             # 최종 텍스트 추출
             if soup.body:
@@ -766,13 +777,16 @@ class NaverCrawler:
                 all_lines = []
                 seen_lines = set()
                 
+                # 마커 패턴 정의 (인덱스 포함)
+                marker_pattern = re.compile(r'^\[(이미지 삽입|링크 삽입|이모티콘 삽입)\d+\]$')
+                
                 for part in body_text_parts:
                     lines = part.split('\n')
                     for line in lines:
                         line_stripped = line.strip()
                         if line_stripped:
-                            # [이미지 삽입], [링크 삽입] 마커는 중복 제거에서 제외
-                            if line_stripped in ['[이미지 삽입]', '[링크 삽입]']:
+                            # [이미지 삽입N], [링크 삽입N], [이모티콘 삽입N] 마커는 중복 제거에서 제외
+                            if marker_pattern.match(line_stripped):
                                 all_lines.append(line_stripped)
                             else:
                                 # 정규화하여 비교 (공백 정리, 소문자 변환)
