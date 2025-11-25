@@ -9,7 +9,7 @@ from naver_crawler import NaverCrawler
 def main():
     """메인 함수 - 단계별 실행"""
     # 검색 키워드 설정
-    search_keyword = "홈페이지제작"
+    search_keyword = "아임웹 홈페이지 제작"
     
     print("=" * 60)
     print("네이버 블로그 크롤링 및 키워드 추출")

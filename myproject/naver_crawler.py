@@ -289,35 +289,95 @@ class NaverCrawler:
                 # 블로그 글 제목 추출
                 blog_title = None
                 
-                # 방법 1: api_txt_lines 클래스를 가진 요소 찾기
+                # 방법 1: sds-comps-text-type-headline1 클래스를 가진 span에서 제목 찾기 (우선순위 1)
+                parent = link.find_parent(['div', 'li', 'dt', 'dd', 'article', 'section'])
+                if parent:
+                    # headline1 클래스를 가진 span 찾기 (제목용)
+                    headline_span = parent.find('span', class_=lambda x: x and 'sds-comps-text-type-headline1' in str(x))
+                    if headline_span:
+                        # 전체 텍스트 가져오기 (mark 태그 포함)
+                        blog_title = headline_span.get_text(strip=True)
                 
-                title_elem = link.find(['a', 'span', 'strong', 'b'], class_=lambda x: x and 'api_txt_lines' in str(x))
-                if title_elem:
-                    blog_title = title_elem.get_text(strip=True)
-                
-                # 방법 2: 부모 요소에서 찾기
+                # 방법 2: sds-comps-text-type-headline1이 없으면 다른 sds-comps-text에서 찾기 (body2 제외)
                 if not blog_title or len(blog_title) < 2:
-                    parent = link.find_parent(['div', 'li', 'dt', 'dd'])
+                    if parent:
+                        # body2는 프로필 정보이므로 제외하고, headline1이나 다른 타입 찾기
+                        sds_spans = parent.find_all('span', class_=lambda x: x and 'sds-comps-text' in str(x))
+                        for sds_span in sds_spans:
+                            class_str = str(sds_span.get('class', []))
+                            # body2는 제외 (프로필 정보)
+                            if 'sds-comps-text-type-body2' in class_str:
+                                continue
+                            # headline1이나 다른 타입에서 찾기 (mark 태그 포함 전체 텍스트)
+                            span_text = sds_span.get_text(strip=True)
+                            # blog.naver.com이나 프로필 정보가 포함된 경우 제외
+                            if span_text and 'blog.naver.com' not in span_text and '›' not in span_text and len(span_text) > 2:
+                                blog_title = span_text
+                                break
+                
+                # 방법 3: se-fs- se-ff-nanummaruburi 클래스를 가진 span에서 찾기
+                if not blog_title or len(blog_title) < 2:
+                    if parent:
+                        se_span = parent.find('span', class_=lambda x: x and 'se-fs-' in str(x) and 'se-ff-nanummaruburi' in str(x))
+                        if se_span:
+                            blog_title = se_span.get_text(strip=True)
+                
+                # 방법 4: api_txt_lines 클래스를 가진 요소 찾기
+                if not blog_title or len(blog_title) < 2:
+                    title_elem = link.find(['a', 'span', 'strong', 'b'], class_=lambda x: x and 'api_txt_lines' in str(x))
+                    if title_elem:
+                        blog_title = title_elem.get_text(strip=True)
+                
+                # 방법 5: 부모 요소에서 api_txt_lines 찾기
+                if not blog_title or len(blog_title) < 2:
+                    if not parent:
+                        parent = link.find_parent(['div', 'li', 'dt', 'dd'])
                     if parent:
                         title_elem = parent.find(['a', 'span', 'strong', 'b'], class_=lambda x: x and 'api_txt_lines' in str(x))
                         if title_elem:
                             blog_title = title_elem.get_text(strip=True)
                 
-                # 방법 3: 링크 텍스트에서 날짜 제거
+                # 방법 6: 링크 텍스트에서 날짜 제거 (body2 같은 프로필 정보 제외)
                 if not blog_title or len(blog_title) < 2:
                     link_text = link.get_text(strip=True)
-                    date_pattern = r'\d{4}[.\-]\d{1,2}[.\-]\d{1,2}'
-                    cleaned_text = re.sub(date_pattern, '', link_text).strip()
-                    if cleaned_text and len(cleaned_text) > 2:
-                        blog_title = cleaned_text
+                    # blog.naver.com이나 프로필 정보 패턴 제거
+                    if 'blog.naver.com' in link_text or '›' in link_text:
+                        # 프로필 정보가 포함된 경우 건너뛰기
+                        pass
+                    else:
+                        date_pattern = r'\d{4}[.\-]\d{1,2}[.\-]\d{1,2}'
+                        cleaned_text = re.sub(date_pattern, '', link_text).strip()
+                        if cleaned_text and len(cleaned_text) > 2:
+                            blog_title = cleaned_text
                 
-                # 방법 4: data-title, title 속성
+                # 방법 7: data-title, title 속성
                 if not blog_title or len(blog_title) < 2:
                     for attr in ['data-title', 'title', 'aria-label']:
                         title_attr = link.get(attr)
                         if title_attr and len(str(title_attr).strip()) > 2:
                             blog_title = str(title_attr).strip()
                             break
+                
+                # 방법 8: 블로그 페이지에서 직접 제목 추출 시도
+                if not blog_title or len(blog_title) < 2:
+                    try:
+                        page = self._fetch_blog_page(href)
+                        if page:
+                            page_soup = page['soup']
+                            # se-fs- se-ff-nanummaruburi 클래스를 가진 span 찾기
+                            se_span = page_soup.find('span', class_=lambda x: x and 'se-fs-' in str(x) and 'se-ff-nanummaruburi' in str(x))
+                            if se_span:
+                                blog_title = se_span.get_text(strip=True)
+                            
+                            # sds-comps-text 클래스를 가진 span 하위의 mark 태그 찾기
+                            if not blog_title or len(blog_title) < 2:
+                                sds_span = page_soup.find('span', class_=lambda x: x and 'sds-comps-text' in str(x))
+                                if sds_span:
+                                    mark_elem = sds_span.find('mark')
+                                    if mark_elem:
+                                        blog_title = mark_elem.get_text(strip=True)
+                    except Exception as e:
+                        print(f"[DEBUG] 블로그 페이지에서 제목 추출 시도 중 오류: {e}")
                 
                 if blog_title and len(blog_title) > 2:
                     if len(blog_title) > 150:
@@ -515,9 +575,115 @@ class NaverCrawler:
             traceback.print_exc()
             return 0
     
+    def _extract_text_with_media_markers(self, element) -> str:
+        """
+        요소에서 텍스트를 추출하면서 이미지와 링크 태그 위치에 마커를 삽입합니다.
+        se-module-image 내의 링크는 [링크 삽입]을 넣지 않고 [이미지 삽입]만 넣습니다.
+        se-module-oglink 내의 링크는 [링크 삽입]을 넣습니다.
+        se-module-sticker 내의 이미지는 [이모티콘 삽입]을 넣습니다.
+        
+        Args:
+            element: BeautifulSoup 요소
+            
+        Returns:
+            이미지/링크 마커가 포함된 텍스트
+        """
+        if element is None:
+            return ''
+        
+        try:
+            # 원본 HTML 문자열 가져오기
+            element_html = str(element)
+            
+            # BeautifulSoup으로 파싱하여 모듈별로 처리
+            soup = BeautifulSoup(element_html, 'lxml')
+            
+            # se-module-sticker 모듈 처리: 이미지를 [이모티콘 삽입]으로, 링크는 마커 없이 제거
+            sticker_modules = soup.find_all('div', class_=lambda x: x and 'se-module-sticker' in str(x))
+            for sticker_module in sticker_modules:
+                # 이미지 태그를 [이모티콘 삽입]으로 교체
+                for img in sticker_module.find_all('img'):
+                    img.replace_with('[이모티콘 삽입]')
+                # 링크 태그는 제거 (링크 삽입 마커 없이)
+                for link in sticker_module.find_all('a'):
+                    # 링크 내부의 텍스트가 있으면 유지, 없으면 제거
+                    link_text = link.get_text(strip=True)
+                    if link_text:
+                        link.replace_with(link_text)
+                    else:
+                        link.decompose()
+            
+            # se-module-image 모듈 처리: 이미지만 [이미지 삽입]으로, 링크는 마커 없이 제거
+            image_modules = soup.find_all('div', class_=lambda x: x and 'se-module-image' in str(x))
+            for img_module in image_modules:
+                # 이미지 태그를 [이미지 삽입]으로 교체
+                for img in img_module.find_all('img'):
+                    img.replace_with('[이미지 삽입]')
+                # 링크 태그는 제거 (링크 삽입 마커 없이)
+                for link in img_module.find_all('a'):
+                    # 링크 내부의 텍스트가 있으면 유지, 없으면 제거
+                    link_text = link.get_text(strip=True)
+                    if link_text:
+                        link.replace_with(link_text)
+                    else:
+                        link.decompose()
+            
+            # se-module-oglink 모듈 처리: 전체 모듈을 [링크 삽입] 하나로 교체 (텍스트는 제외)
+            oglink_modules = soup.find_all('div', class_=lambda x: x and 'se-module-oglink' in str(x))
+            for oglink_module in oglink_modules:
+                # 전체 oglink 모듈을 [링크 삽입] 하나로 교체 (내부 텍스트는 모두 제거)
+                oglink_module.replace_with('[링크 삽입]')
+            
+            # 나머지 이미지 태그 처리 (se-module-image, se-module-sticker가 아닌 곳의 이미지)
+            for img in soup.find_all('img'):
+                # 이미 처리된 이미지는 건너뛰기
+                parent_sticker_module = img.find_parent('div', class_=lambda x: x and 'se-module-sticker' in str(x))
+                parent_img_module = img.find_parent('div', class_=lambda x: x and 'se-module-image' in str(x))
+                parent_oglink_module = img.find_parent('div', class_=lambda x: x and 'se-module-oglink' in str(x))
+                
+                if not parent_sticker_module and not parent_img_module and not parent_oglink_module:
+                    img.replace_with('[이미지 삽입]')
+            
+            # 나머지 링크 태그 처리 (se-module-image, se-module-oglink, se-module-sticker가 아닌 곳의 링크)
+            for link in soup.find_all('a'):
+                # 이미 처리된 링크는 건너뛰기
+                parent_sticker_module = link.find_parent('div', class_=lambda x: x and 'se-module-sticker' in str(x))
+                parent_img_module = link.find_parent('div', class_=lambda x: x and 'se-module-image' in str(x))
+                parent_oglink_module = link.find_parent('div', class_=lambda x: x and 'se-module-oglink' in str(x))
+                
+                if not parent_sticker_module and not parent_img_module and not parent_oglink_module:
+                    link_text = link.get_text(strip=True)
+                    if link_text:
+                        link.replace_with(f"{link_text}\n[링크 삽입]")
+                    else:
+                        link.replace_with('[링크 삽입]')
+            
+            # 최종 텍스트 추출
+            if soup.body:
+                result_text = soup.body.get_text(separator='\n', strip=True)
+            elif soup.contents:
+                result_text = soup.contents[0].get_text(separator='\n', strip=True) if len(soup.contents) > 0 else soup.get_text(separator='\n', strip=True)
+            else:
+                result_text = soup.get_text(separator='\n', strip=True)
+            
+            # 결과가 비어있으면 원본 요소에서 직접 추출
+            if not result_text or len(result_text.strip()) == 0:
+                result_text = element.get_text(separator='\n', strip=True)
+            
+            return result_text
+            
+        except Exception as e:
+            # 오류 발생 시 원본 텍스트 반환
+            print(f"[WARN] _extract_text_with_media_markers 오류: {e}")
+            try:
+                return element.get_text(separator='\n', strip=True)
+            except:
+                return ''
+    
     def extract_blog_body_text(self, url: str) -> Optional[str]:
         """
         블로그 글의 본문 텍스트를 추출합니다.
+        이미지 태그가 있으면 [이미지 삽입], 링크 태그가 있으면 [링크 삽입]을 삽입합니다.
         
         Args:
             url: 블로그 글 URL
@@ -532,29 +698,23 @@ class NaverCrawler:
                 return None
             
             soup = page['soup']
+            html_text = page['html']  # 원본 HTML 텍스트도 가져오기
             body_text_parts = []
+            
+            # 디버깅: 전체 HTML에서 이미지와 링크 개수 확인
+            img_count_in_html = len(re.findall(r'<img[^>]*/?>', html_text, re.IGNORECASE))
+            link_count_in_html = len(re.findall(r'<a[^>]*>', html_text, re.IGNORECASE))
+            print(f"[DEBUG] 전체 HTML에서 이미지 {img_count_in_html}개, 링크 {link_count_in_html}개 발견")
             
             # 방법 1: se-main-container 클래스를 가진 요소에서 텍스트 추출
             containers = soup.find_all(class_=lambda x: x and 'se-main-container' in str(x))
             if containers:
                 print(f"[INFO] se-main-container 요소에서 본문 추출 중... ({len(containers)}개)")
                 for container in containers:
-                    # se-component-text, se-text-paragraph 등 텍스트 요소 찾기
-                    text_elements = container.find_all(class_=lambda x: x and any(
-                        keyword in str(x).lower() for keyword in ['se-text', 'se-component-text', 'se-paragraph']
-                    ))
-                    
-                    if text_elements:
-                        # 텍스트 요소를 찾았으면 각 요소에서만 추출 (container 전체는 제외하여 중복 방지)
-                        for elem in text_elements:
-                            text = elem.get_text(separator='\n', strip=True)
-                            if text and len(text.strip()) > 0:
-                                body_text_parts.append(text)
-                    else:
-                        # 텍스트 요소를 찾지 못했으면 직접 텍스트 추출
-                        text = container.get_text(separator='\n', strip=True)
-                        if text and len(text.strip()) > 0:
-                            body_text_parts.append(text)
+                    # 전체 컨테이너를 한 번에 처리하여 이미지와 링크를 놓치지 않도록 함
+                    text = self._extract_text_with_media_markers(container)
+                    if text and len(text.strip()) > 0:
+                        body_text_parts.append(text)
             
             # 방법 2: post-view{글ID} div에서 텍스트 추출
             if not body_text_parts:
@@ -562,7 +722,7 @@ class NaverCrawler:
                 if post_view_divs:
                     print(f"[INFO] post-view div 요소에서 본문 추출 중... ({len(post_view_divs)}개)")
                     for div in post_view_divs:
-                        text = div.get_text(separator='\n', strip=True)
+                        text = self._extract_text_with_media_markers(div)
                         if text and len(text.strip()) > 0:
                             body_text_parts.append(text)
             
@@ -580,7 +740,7 @@ class NaverCrawler:
                     if elements:
                         print(f"[INFO] 본문 영역 요소에서 텍스트 추출 중... ({len(elements)}개)")
                         for elem in elements:
-                            text = elem.get_text(separator='\n', strip=True)
+                            text = self._extract_text_with_media_markers(elem)
                             if text and len(text.strip()) > 20:  # 최소 길이 체크
                                 body_text_parts.append(text)
                                 break
@@ -595,7 +755,7 @@ class NaverCrawler:
                 
                 body = soup.find('body')
                 if body:
-                    text = body.get_text(separator='\n', strip=True)
+                    text = self._extract_text_with_media_markers(body)
                     # 너무 짧은 라인 제거
                     lines = [line.strip() for line in text.split('\n') if line.strip() and len(line.strip()) > 5]
                     if lines:
@@ -611,11 +771,15 @@ class NaverCrawler:
                     for line in lines:
                         line_stripped = line.strip()
                         if line_stripped:
-                            # 정규화하여 비교 (공백 정리, 소문자 변환)
-                            normalized = re.sub(r'\s+', ' ', line_stripped.lower())
-                            if normalized and normalized not in seen_lines:
-                                all_lines.append(line)
-                                seen_lines.add(normalized)
+                            # [이미지 삽입], [링크 삽입] 마커는 중복 제거에서 제외
+                            if line_stripped in ['[이미지 삽입]', '[링크 삽입]']:
+                                all_lines.append(line_stripped)
+                            else:
+                                # 정규화하여 비교 (공백 정리, 소문자 변환)
+                                normalized = re.sub(r'\s+', ' ', line_stripped.lower())
+                                if normalized and normalized not in seen_lines:
+                                    all_lines.append(line)
+                                    seen_lines.add(normalized)
                         elif all_lines and all_lines[-1].strip():  # 빈 줄은 연속되지 않도록
                             all_lines.append('')
                 
