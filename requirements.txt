@@ -1,0 +1,21 @@
+# 웹 크롤링을 위한 패키지
+requests>=2.28.0
+beautifulsoup4>=4.11.0
+lxml>=4.9.0
+
+# 자연어 처리를 위한 패키지
+konlpy>=0.6.0
+
+# 엑셀 파일 처리를 위한 패키지
+pandas>=1.5.0
+openpyxl>=3.0.0
+
+# Gemini API를 위한 패키지
+google-genai>=0.2.0
+Pillow>=9.0.0
+
+# 예쁜 로그 출력을 위한 패키지
+rich>=13.0.0
+
+# 환경 변수 관리를 위한 패키지
+python-dotenv>=1.0.0
