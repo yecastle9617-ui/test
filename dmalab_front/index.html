@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMaLab - 네이버 블로그 크롤링</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>🚀 DMaLab</h1>
+            <p>네이버 블로그 크롤링 및 키워드 분석</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="search">검색</button>
+            <button class="tab-btn" data-tab="crawl">크롤링</button>
+            <button class="tab-btn" data-tab="crawl-bulk">크롤링 (리스트)</button>
+            <button class="tab-btn" data-tab="analyze">키워드 분석</button>
+            <button class="tab-btn" data-tab="process">전체 처리</button>
+        </div>
+
+        <div class="content">
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>처리 중...</p>
+            </div>
+
+            <div id="error" class="error" style="display: none;"></div>
+
+            <!-- 검색 탭 -->
+            <div id="search-tab" class="tab-content active">
+                <div class="form-section">
+                    <h2>블로그 검색</h2>
+                    <div class="form-group">
+                        <label>검색 키워드</label>
+                        <input type="text" id="search-keyword" placeholder="예: 아임웹 홈페이지 제작">
+                    </div>
+                    <div class="form-group">
+                        <label>가져올 개수</label>
+                        <input type="number" id="search-count" value="3" min="1" max="10">
+                    </div>
+                    <button onclick="handleSearch()">검색</button>
+                </div>
+            </div>
+
+            <!-- 크롤링 탭 -->
+            <div id="crawl-tab" class="tab-content">
+                <div class="form-section">
+                    <h2>블로그 크롤링 (단일)</h2>
+                    <div class="form-group">
+                        <label>블로그 URL</label>
+                        <input type="text" id="crawl-url" placeholder="https://blog.naver.com/...">
+                    </div>
+                    <div class="form-group">
+                        <label>블로그 제목 (선택사항)</label>
+                        <input type="text" id="crawl-title" placeholder="블로그 제목">
+                    </div>
+                    <button onclick="handleCrawl()">크롤링</button>
+                </div>
+            </div>
+
+            <!-- 크롤링 리스트 탭 -->
+            <div id="crawl-bulk-tab" class="tab-content">
+                <div class="form-section">
+                    <h2>블로그 크롤링 (리스트)</h2>
+                    <div class="form-group">
+                        <label>블로그 URL 리스트 (한 줄에 하나씩)</label>
+                        <textarea id="crawl-urls" rows="5" placeholder="https://blog.naver.com/...&#10;https://blog.naver.com/...&#10;https://blog.naver.com/..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>블로그 제목 리스트 (선택사항, 한 줄에 하나씩)</label>
+                        <textarea id="crawl-titles" rows="5" placeholder="제목1&#10;제목2&#10;제목3"></textarea>
+                    </div>
+                    <button onclick="handleCrawlBulk()">크롤링</button>
+                </div>
+            </div>
+
+            <!-- 키워드 분석 탭 -->
+            <div id="analyze-tab" class="tab-content">
+                <div class="form-section">
+                    <h2>키워드 분석</h2>
+                    <div class="form-group">
+                        <label>분석할 텍스트</label>
+                        <textarea id="analyze-text" rows="10" placeholder="분석할 텍스트를 입력하세요..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>상위 N개 키워드</label>
+                        <input type="number" id="analyze-topn" value="10" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>최소 키워드 길이</label>
+                        <input type="number" id="analyze-minlength" value="2" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>최소 출현 횟수</label>
+                        <input type="number" id="analyze-mincount" value="2" min="1">
+                    </div>
+                    <button onclick="handleAnalyze()">분석</button>
+                </div>
+            </div>
+
+            <!-- 전체 처리 탭 -->
+            <div id="process-tab" class="tab-content">
+                <div class="form-section">
+                    <h2>전체 처리 (검색 + 크롤링 + 분석)</h2>
+                    <div class="form-group">
+                        <label>검색 키워드</label>
+                        <input type="text" id="process-keyword" placeholder="예: 아임웹 홈페이지 제작">
+                    </div>
+                    <div class="form-group">
+                        <label>처리할 블로그 개수</label>
+                        <input type="number" id="process-count" value="3" min="1" max="10">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="process-analyze" checked>
+                            <span>키워드 분석 수행</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>상위 N개 키워드</label>
+                        <input type="number" id="process-topn" value="10" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>최소 키워드 길이</label>
+                        <input type="number" id="process-minlength" value="2" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>최소 출현 횟수</label>
+                        <input type="number" id="process-mincount" value="2" min="1">
+                    </div>
+                    <button onclick="handleProcess()">전체 처리</button>
+                </div>
+            </div>
+
+            <div id="result" class="result" style="display: none;">
+                <div id="result-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -50,6 +50,7 @@ Thumbs.db
 # 네이버 로그인 세션 정보 (보안상 민감한 정보)
 naver_state.json
 
-
+# 크롤링 결과 디렉토리
+naver_crawler/
 
 

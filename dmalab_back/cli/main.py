@@ -2,8 +2,15 @@
 메인 모듈
 """
 
-from naver_crawler import NaverCrawler
-from morpheme_analyzer import MorphemeAnalyzer
+import sys
+from pathlib import Path
+
+# 프로젝트 루트를 sys.path에 추가
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+from crawler.naver_crawler import NaverCrawler
+from analyzer.morpheme_analyzer import MorphemeAnalyzer
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 from datetime import datetime

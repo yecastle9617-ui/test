@@ -1,125 +1,84 @@
-# 네이버 블로그 크롤러
+# DMaLab
 
-네이버 통합검색에서 블로그 글을 검색하고, 본문 텍스트를 추출하여 저장하는 파이썬 프로젝트입니다.
-
-## 주요 기능
-
-- **네이버 통합검색 크롤링**: 키워드로 네이버 통합검색을 수행하여 탑1 블로그 글을 찾습니다.
-- **블로그 본문 추출**: 블로그 글의 본문 텍스트를 추출합니다.
-  - iframe(mainFrame) 자동 추적
-  - 모바일 페이지 자동 재시도
-  - 차단 페이지 감지 및 처리
-- **미디어 마커 삽입**: 이미지, 링크, 이모티콘 위치에 마커를 삽입합니다.
-  - `[이미지 삽입]`: 이미지가 있는 위치
-  - `[링크 삽입]`: 외부 링크가 있는 위치
-  - `[이모티콘 삽입]`: 이모티콘이 있는 위치
-- **텍스트 파일 저장**: 추출한 본문을 txt 파일로 저장합니다.
-
-## 설치 방법
-
-```bash
-pip install -r requirements.txt
-```
-
-## 사용 방법
-
-### 기본 실행
-
-```bash
-python -m myproject.main
-```
-
-기본적으로 `main.py`에서 설정된 키워드("아임웹 홈페이지 제작")로 검색을 수행합니다.
-
-### 코드에서 사용하기
-
-```python
-from myproject.naver_crawler import NaverCrawler
-
-crawler = NaverCrawler()
-
-# 1. 키워드로 검색하여 탑1 블로그 정보 가져오기
-blog_info = crawler.get_top_1_blog_info("검색 키워드")
-print(f"제목: {blog_info['title']}")
-print(f"URL: {blog_info['url']}")
-
-# 2. 블로그 본문 텍스트 추출
-body_text = crawler.extract_blog_body_text(blog_info['url'])
-print(f"본문 길이: {len(body_text)}자")
-
-# 3. 본문을 txt 파일로 저장
-txt_path = crawler.save_blog_to_txt(
-    blog_info['url'], 
-    title=blog_info['title']
-)
-print(f"저장된 파일: {txt_path}")
-```
+네이버 블로그 크롤링 및 키워드 분석을 위한 풀스택 프로젝트입니다.
 
 ## 프로젝트 구조
 
 ```
 .
-├── myproject/              # 메인 소스 코드
-│   ├── __init__.py
-│   ├── main.py            # 메인 실행 파일
-│   ├── naver_crawler.py   # 네이버 크롤링 모듈
-│   └── keyword_extractor.py  # 키워드 추출 모듈 (현재 미사용)
-├── requirements.txt        # 의존성 패키지
-├── setup.py               # 패키지 설정
+├── dmalab_back/           # 백엔드 (FastAPI 서버)
+│   ├── api/               # API 레이어
+│   │   └── app.py         # FastAPI 서버
+│   ├── crawler/           # 크롤링 모듈
+│   │   ├── naver_crawler.py
+│   │   └── naver_login.py
+│   ├── analyzer/          # 분석 모듈
+│   │   └── morpheme_analyzer.py
+│   ├── blog/              # 블로그 모듈
+│   │   └── blog_posting.py
+│   ├── cli/               # CLI 명령어
+│   │   └── main.py
+│   ├── config/            # 설정 파일
+│   │   └── prompt_template.json
+│   ├── tests/             # 테스트 파일
+│   ├── requirements.txt   # 의존성 패키지
+│   └── API_README.md      # API 사용 가이드
+├── dmalab_front/          # 프론트엔드 (예정)
+│   └── README.md
 └── README.md              # 프로젝트 설명
 ```
 
-## 개발 환경 설정
+## 빠른 시작
 
-1. 가상 환경 생성:
+### 백엔드 서버 실행
+
 ```bash
-python -m venv venv
-```
-
-2. 가상 환경 활성화:
-```bash
-# Windows
-venv\Scripts\activate
-
-# Linux/Mac
-source venv/bin/activate
-```
-
-3. 의존성 설치:
-```bash
+cd dmalab_back
 pip install -r requirements.txt
+python api/app.py
+# 또는
+uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## 주요 클래스 및 메서드
+서버가 실행되면:
+- API 문서: http://localhost:8000/docs
+- API 루트: http://localhost:8000
 
-### NaverCrawler
+자세한 내용은 [dmalab_back/API_README.md](dmalab_back/API_README.md)를 참고하세요.
 
-네이버 블로그 크롤링을 담당하는 메인 클래스입니다.
+### CLI로 실행 (기존 방식)
 
-#### 주요 메서드
+```bash
+cd dmalab_back
+python cli/main.py
+```
 
-- `get_top_1_blog_info(keyword: str) -> dict`
-  - 키워드로 네이버 통합검색을 수행하여 첫 번째 블로그 글의 제목과 URL을 반환합니다.
-  - 반환값: `{'title': str, 'url': str}`
+## 주요 기능
 
-- `extract_blog_body_text(url: str) -> Optional[str]`
-  - 블로그 글의 본문 텍스트를 추출합니다.
-  - 이미지/링크/이모티콘 위치에 마커를 삽입합니다.
-  - iframe과 모바일 페이지를 자동으로 처리합니다.
+### 백엔드 (dmalab_back)
 
-- `save_blog_to_txt(url: str, output_path: str = None, title: str = None) -> Optional[str]`
-  - 블로그 본문을 txt 파일로 저장합니다.
-  - 파일명은 자동 생성되거나 지정할 수 있습니다.
+- **네이버 통합검색 크롤링**: 키워드로 네이버 통합검색을 수행하여 블로그 글을 찾습니다.
+- **블로그 본문 추출**: 블로그 글의 본문 텍스트를 추출합니다.
+  - iframe(mainFrame) 자동 추적
+  - 모바일 페이지 자동 재시도
+  - 차단 페이지 감지 및 처리
+- **키워드 분석**: 형태소 분석을 통한 키워드 빈도 및 순위 분석
+- **FastAPI 서버**: RESTful API 제공
+- **미디어 마커 삽입**: 이미지, 링크, 이모티콘 위치에 마커를 삽입합니다.
 
-## 동작 방식
+### 프론트엔드 (dmalab_front)
 
-1. **검색 단계**: 네이버 통합검색에서 키워드로 검색하여 블로그 링크를 찾습니다.
-2. **페이지 접근**: 블로그 URL에 접속하여 HTML을 가져옵니다.
-3. **iframe 처리**: 필요 시 mainFrame iframe을 추적하여 실제 본문을 가져옵니다.
-4. **모바일 페이지 재시도**: 본문을 찾지 못한 경우 모바일 페이지로 재시도합니다.
-5. **본문 추출**: `se-main-container` 또는 `post-view` 클래스를 가진 요소에서 본문을 추출합니다.
-6. **마커 삽입**: 이미지, 링크, 이모티콘 위치에 적절한 마커를 삽입합니다.
-7. **파일 저장**: 추출한 본문을 txt 파일로 저장합니다.
+- 프론트엔드 프로젝트 예정
+
+## API 엔드포인트
+
+자세한 API 문서는 서버 실행 후 http://localhost:8000/docs 에서 확인할 수 있습니다.
+
+주요 엔드포인트:
+- `POST /api/search` - 블로그 검색
+- `POST /api/crawl` - 블로그 크롤링
+- `POST /api/analyze` - 키워드 분석
+- `POST /api/process` - 전체 처리 (검색 + 크롤링 + 분석)
 
 ## 주의사항
 
