@@ -1,0 +1,191 @@
+{
+  "title": {
+    "content": "아임웹 홈페이지 제작 초보 가이드",
+    "style": {
+      "font_size": 26,
+      "bold": true
+    }
+  },
+  "introduction": {
+    "content": "아임웹을 통해 웹사이트를 제작하려는 분들을 위해 이 가이드를 준비했습니다. 많은 사람들이 아임웹을 선택하는 이유는 간단한 사용법과 다양한 기능 때문입니다. 이번 글에서는 아임웹 홈페이지 제작의 기본적인 과정을 알아보겠습니다.",
+    "style": {
+      "font_size": 16
+    }
+  },
+  "body": [
+    {
+      "subtitle": {
+        "content": "아임웹의 주요 기능 이해하기",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "아임웹은 사용자가 손쉽게 홈페이지를 제작할 수 있도록 다양한 기능을 제공합니다. 직관적인 드래그 앤 드롭 방식으로 페이지를 구성할 수 있으며, 다양한 템플릿을 통해 디자인 작업을 간편하게 진행할 수 있습니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            "드래그 앤 드롭 방식으로 간편한 페이지 구성",
+            "다양한 템플릿 제공으로 디자인 선택의 폭이 넓음",
+            "모바일 최적화 기능으로 다양한 디바이스에서 호환 가능"
+          ],
+          "style": {
+            "font_size": 16
+          }
+        }
+      ]
+    },
+    {
+      "subtitle": {
+        "content": "홈페이지 제작 과정",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "아임웹을 이용한 홈페이지 제작 과정은 크게 세 단계로 나뉩니다. 첫 번째는 템플릿 선택, 두 번째는 페이지 구성, 세 번째는 콘텐츠 업로드입니다. 이 과정을 통해 누구나 쉽게 자신만의 웹사이트를 만들 수 있습니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "image_placeholder",
+          "placeholder": "[아임웹 홈페이지 제작 화면_이미지 삽입1]",
+          "image_prompt": "주제: 아임웹 홈페이지 제작 화면\n상세 묘사:\n- 외형: 다양한 템플릿 화면\n- 표정: 사용자의 손쉬운 조작을 보여주는 화면\n스타일:\n- 화풍: 현실적 스크린샷\n- 조명: 자연광\n제한:\n- 왜곡 없음, 텍스트 없음",
+          "style": {
+            "font_size": 14,
+            "italic": true,
+            "color": "#999"
+          }
+        }
+      ]
+    },
+    {
+      "subtitle": {
+        "content": "유지보수와 관리 팁",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "홈페이지를 제작한 후에는 주기적인 유지보수와 관리를 통해 사이트의 품질을 유지해야 합니다. 아임웹의 관리 도구를 사용하면 변경 사항을 쉽게 적용할 수 있으며, 방문자 통계를 통해 사이트의 성과를 분석할 수 있습니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            "정기적인 콘텐츠 업데이트로 사이트의 신뢰도 유지",
+            "방문자 통계 분석을 통한 사이트 성과 개선",
+            "사용자 피드백을 반영한 디자인 및 기능 개선"
+          ],
+          "style": {
+            "font_size": 16
+          }
+        }
+      ]
+    }
+  ],
+  "conclusion": {
+    "content": "아임웹을 활용하면 누구나 쉽게 홈페이지를 제작할 수 있습니다. 중요한 것은 지속적인 관리와 업데이트입니다. 이 가이드가 여러분의 웹사이트 제작에 도움이 되었기를 바랍니다.",
+    "style": {
+      "font_size": 16,
+      "bold": true
+    }
+  },
+  "faq": [],
+  "tags": [
+    "아임웹",
+    "홈페이지 제작",
+    "웹사이트 관리",
+    "디자인",
+    "IT 기술"
+  ],
+  "generated_images": [
+    {
+      "index": 1,
+      "placeholder": "[아임웹 홈페이지 제작 화면_이미지 삽입1]",
+      "image_path": "20251208_10/images/image_1_20251208_014405.png",
+      "full_path": "D:\\DMA_dev\\DMaLab\\dmalab_back\\blog\\create_naver\\20251208_10\\images\\image_1_20251208_014405.png"
+    }
+  ],
+  "analysis": {
+    "reference_urls": [
+      "https://blog.naver.com/byfinder/223621187053",
+      "https://blog.naver.com/simeon49/224054975462",
+      "https://blog.naver.com/dashover/224054980318"
+    ],
+    "used_reference_urls": [
+      "https://blog.naver.com/byfinder/223621187053",
+      "https://blog.naver.com/simeon49/224054975462",
+      "https://blog.naver.com/dashover/224054980318"
+    ],
+    "combined_body_length": 10175,
+    "top_keywords": [
+      {
+        "keyword": "홈페이지",
+        "count": 42,
+        "rank": 1
+      },
+      {
+        "keyword": "임웹",
+        "count": 40,
+        "rank": 2
+      },
+      {
+        "keyword": "사이트",
+        "count": 23,
+        "rank": 3
+      },
+      {
+        "keyword": "제작",
+        "count": 21,
+        "rank": 4
+      },
+      {
+        "keyword": "관리",
+        "count": 21,
+        "rank": 5
+      },
+      {
+        "keyword": "수정",
+        "count": 20,
+        "rank": 6
+      },
+      {
+        "keyword": "전문",
+        "count": 18,
+        "rank": 7
+      },
+      {
+        "keyword": "직접",
+        "count": 18,
+        "rank": 8
+      },
+      {
+        "keyword": "사용자",
+        "count": 16,
+        "rank": 9
+      },
+      {
+        "keyword": "디자인",
+        "count": 15,
+        "rank": 10
+      }
+    ]
+  }
+}

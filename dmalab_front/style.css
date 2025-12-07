@@ -107,6 +107,12 @@ body {
     color: #555;
 }
 
+.form-group label.required:after {
+    content: ' *';
+    color: #dc3545;
+    margin-left: 3px;
+}
+
 .form-group input,
 .form-group textarea {
     width: 100%;
@@ -128,6 +134,71 @@ body {
     resize: vertical;
     min-height: 120px;
 }
+
+.form-help {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+    font-style: italic;
+}
+
+.external-links-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.external-link-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.external-link-input {
+    flex: 1;
+}
+
+.btn-secondary-small {
+    margin-top: 8px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    background: #f0f0f5;
+    color: #333;
+    border-radius: 4px;
+}
+
+.btn-secondary-small:hover {
+    background: #e0e0f0;
+}
+
+.btn-link-remove {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    background: #ffecec;
+    color: #c33;
+    border-radius: 4px;
+}
+
+.btn-link-remove:hover {
+    background: #ffdddd;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: #555;
+}
+
+.form-group label:after {
+    content: '';
+}
+
+.form-group label:has(+ input[required]),
+.form-group label:has(+ select[required]) {
+    font-weight: 600;
+}
+
 
 .checkbox-group {
     margin-top: 10px;
@@ -184,6 +255,42 @@ button:disabled {
     padding: 40px;
 }
 
+.loading-steps {
+    margin-top: 20px;
+    text-align: left;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.loading-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.loading-step .step-icon {
+    font-size: 16px;
+    width: 24px;
+    text-align: center;
+}
+
+.loading-step .step-text {
+    flex: 1;
+}
+
+.loading-step.step-processing .step-icon {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 .spinner {
     border: 4px solid #f3f3f3;
     border-top: 4px solid #667eea;
@@ -217,10 +324,178 @@ button:disabled {
 }
 
 .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
     padding-bottom: 15px;
     border-bottom: 2px solid #e0e0e0;
 }
+
+.result-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-copy {
+    padding: 10px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-copy:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.blog-editor-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.section-label {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.blog-editor {
+    padding: 20px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333;
+    overflow-y: auto;
+}
+
+.blog-editor:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+.blog-editor-title {
+    min-height: 80px;
+    max-height: 150px;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.blog-editor-body {
+    min-height: 500px;
+    max-height: 800px;
+}
+
+.blog-editor-tags {
+    min-height: 60px;
+    max-height: 120px;
+    font-size: 14px;
+    line-height: 2;
+    /* 태그는 순수 텍스트로만 표시되므로 스타일은 에디터 자체에만 적용 */
+}
+
+.blog-editor h1,
+.blog-editor h2,
+.blog-editor h3 {
+    margin-top: 30px;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.blog-editor h1 {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.blog-editor h2 {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.blog-editor p {
+    margin-bottom: 20px;
+    line-height: 1.8;
+}
+
+.blog-editor blockquote {
+    border-left: 4px solid #cccccc;
+    background-color: #f5f5f5;
+    padding: 10px 15px;
+    margin: 20px 0;
+    color: #333;
+}
+
+.blog-editor ul,
+.blog-editor ol {
+    margin-bottom: 20px;
+    padding-left: 25px;
+    line-height: 1.8;
+}
+
+.blog-editor li {
+    margin-bottom: 8px;
+}
+
+.blog-editor h1,
+.blog-editor h2,
+.blog-editor h3 {
+    margin-top: 30px;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.blog-editor h1 {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.blog-editor h2 {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.blog-editor p {
+    margin-bottom: 20px;
+    line-height: 1.8;
+}
+
+.blog-editor blockquote {
+    border-left: 4px solid #cccccc;
+    background-color: #f5f5f5;
+    padding: 10px 15px;
+    margin: 20px 0;
+    color: #333;
+}
+
+.blog-editor ul,
+.blog-editor ol {
+    margin-bottom: 20px;
+    padding-left: 25px;
+    line-height: 1.8;
+}
+
+.blog-editor li {
+    margin-bottom: 8px;
+}
+
+/* .result-header는 위에서 재정의됨 */
 
 .result-header h3 {
     margin-bottom: 10px;
@@ -729,5 +1004,154 @@ button:disabled {
     .content {
         padding: 20px;
     }
+}
+
+/* 블로그 콘텐츠 스타일 */
+.blog-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    line-height: 1.8;
+}
+
+.blog-content h1 {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.blog-content h2 {
+    margin-top: 30px;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.blog-content h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #555;
+}
+
+.blog-section {
+    margin-bottom: 30px;
+}
+
+.blog-blocks {
+    margin-bottom: 20px;
+}
+
+.blog-blocks p {
+    margin-bottom: 15px;
+}
+
+.blog-blocks blockquote {
+    margin: 20px 0;
+    padding: 15px 20px;
+    border-left: 4px solid #667eea;
+    background: #f5f5f5;
+    font-style: italic;
+}
+
+.blog-blocks ul {
+    margin: 15px 0;
+    padding-left: 30px;
+}
+
+.blog-blocks ul li {
+    margin-bottom: 8px;
+}
+
+.blog-faq {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 2px solid #e0e0e0;
+}
+
+.faq-item {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.faq-item h3 {
+    margin-top: 0;
+    color: #667eea;
+}
+
+.blog-tags {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.blog-tags .tag {
+    display: inline-block;
+    margin: 5px 10px 5px 0;
+    padding: 5px 12px;
+    background: #667eea;
+    color: white;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+    font-family: inherit;
+    background: white;
+}
+
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-group select:disabled {
+    background: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.category-selector {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.category-selector select {
+    flex: 1;
+    min-width: 200px;
+}
+
+@media (max-width: 768px) {
+    .category-selector {
+        flex-direction: column;
+    }
+    
+    .category-selector select {
+        width: 100%;
+        min-width: 100%;
+    }
+}
+
+details {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 10px;
 }
 

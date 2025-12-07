@@ -27,3 +27,6 @@ playwright>=1.40.0
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
+
+# OpenAI GPT API를 위한 패키지
+openai>=1.0.0

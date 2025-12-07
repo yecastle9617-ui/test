@@ -6,3 +6,4 @@ from .morpheme_analyzer import MorphemeAnalyzer
 
 __all__ = ['MorphemeAnalyzer']
 
+

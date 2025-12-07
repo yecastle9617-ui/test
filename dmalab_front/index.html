@@ -14,97 +14,23 @@
         </header>
 
         <div class="tabs">
-            <button class="tab-btn active" data-tab="search">검색</button>
-            <button class="tab-btn" data-tab="crawl">크롤링</button>
-            <button class="tab-btn" data-tab="crawl-bulk">크롤링 (리스트)</button>
-            <button class="tab-btn" data-tab="analyze">키워드 분석</button>
-            <button class="tab-btn" data-tab="process">전체 처리</button>
+            <button class="tab-btn" data-tab="process">네이버 상위 블로그 분석</button>
+            <button class="tab-btn active" data-tab="generate">GPT 블로그 생성</button>
         </div>
 
         <div class="content">
             <div id="loading" class="loading" style="display: none;">
                 <div class="spinner"></div>
-                <p>처리 중...</p>
+                <p id="loading-message">처리 중...</p>
+                <div id="loading-steps" class="loading-steps"></div>
             </div>
 
             <div id="error" class="error" style="display: none;"></div>
 
-            <!-- 검색 탭 -->
-            <div id="search-tab" class="tab-content active">
-                <div class="form-section">
-                    <h2>블로그 검색</h2>
-                    <div class="form-group">
-                        <label>검색 키워드</label>
-                        <input type="text" id="search-keyword" placeholder="예: 아임웹 홈페이지 제작">
-                    </div>
-                    <div class="form-group">
-                        <label>가져올 개수</label>
-                        <input type="number" id="search-count" value="3" min="1" max="10">
-                    </div>
-                    <button onclick="handleSearch()">검색</button>
-                </div>
-            </div>
-
-            <!-- 크롤링 탭 -->
-            <div id="crawl-tab" class="tab-content">
-                <div class="form-section">
-                    <h2>블로그 크롤링 (단일)</h2>
-                    <div class="form-group">
-                        <label>블로그 URL</label>
-                        <input type="text" id="crawl-url" placeholder="https://blog.naver.com/...">
-                    </div>
-                    <div class="form-group">
-                        <label>블로그 제목 (선택사항)</label>
-                        <input type="text" id="crawl-title" placeholder="블로그 제목">
-                    </div>
-                    <button onclick="handleCrawl()">크롤링</button>
-                </div>
-            </div>
-
-            <!-- 크롤링 리스트 탭 -->
-            <div id="crawl-bulk-tab" class="tab-content">
-                <div class="form-section">
-                    <h2>블로그 크롤링 (리스트)</h2>
-                    <div class="form-group">
-                        <label>블로그 URL 리스트 (한 줄에 하나씩)</label>
-                        <textarea id="crawl-urls" rows="5" placeholder="https://blog.naver.com/...&#10;https://blog.naver.com/...&#10;https://blog.naver.com/..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>블로그 제목 리스트 (선택사항, 한 줄에 하나씩)</label>
-                        <textarea id="crawl-titles" rows="5" placeholder="제목1&#10;제목2&#10;제목3"></textarea>
-                    </div>
-                    <button onclick="handleCrawlBulk()">크롤링</button>
-                </div>
-            </div>
-
-            <!-- 키워드 분석 탭 -->
-            <div id="analyze-tab" class="tab-content">
-                <div class="form-section">
-                    <h2>키워드 분석</h2>
-                    <div class="form-group">
-                        <label>분석할 텍스트</label>
-                        <textarea id="analyze-text" rows="10" placeholder="분석할 텍스트를 입력하세요..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>상위 N개 키워드</label>
-                        <input type="number" id="analyze-topn" value="10" min="1" max="100">
-                    </div>
-                    <div class="form-group">
-                        <label>최소 키워드 길이</label>
-                        <input type="number" id="analyze-minlength" value="2" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>최소 출현 횟수</label>
-                        <input type="number" id="analyze-mincount" value="2" min="1">
-                    </div>
-                    <button onclick="handleAnalyze()">분석</button>
-                </div>
-            </div>
-
-            <!-- 전체 처리 탭 -->
+            <!-- 네이버 상위 블로그 분석 탭 -->
             <div id="process-tab" class="tab-content">
                 <div class="form-section">
-                    <h2>전체 처리 (검색 + 크롤링 + 분석)</h2>
+                    <h2>네이버 상위 블로그 분석</h2>
                     <div class="form-group">
                         <label>검색 키워드</label>
                         <input type="text" id="process-keyword" placeholder="예: 아임웹 홈페이지 제작">
@@ -131,12 +57,145 @@
                         <label>최소 출현 횟수</label>
                         <input type="number" id="process-mincount" value="2" min="1">
                     </div>
-                    <button onclick="handleProcess()">전체 처리</button>
+                    <button onclick="handleProcess()">분석 시작</button>
+                </div>
+            </div>
+
+            <!-- GPT 블로그 생성 탭 -->
+            <div id="generate-tab" class="tab-content active">
+                <div class="form-section">
+                    <h2>GPT 블로그 생성</h2>
+                    
+                    <div class="form-group">
+                        <label class="required">키워드</label>
+                        <input type="text" id="generate-keywords" placeholder="예: 아임웹 홈페이지 제작" maxlength="100" required>
+                        <small class="form-help">블로그 글의 주요 키워드를 입력하세요. 검색 최적화(SEO)를 위해 사용될 핵심 키워드입니다. (최대 100자)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="required">카테고리</label>
+                        <div class="category-selector">
+                            <select id="generate-category-main" required>
+                                <option value="">대분류 선택</option>
+                                <option value="entertainment">엔터테인먼트·예술</option>
+                                <option value="life">생활·노하우·쇼핑</option>
+                                <option value="hobby">취미·여가·여행</option>
+                                <option value="knowledge">지식·동향</option>
+                            </select>
+                            <select id="generate-category-sub" required disabled>
+                                <option value="">소분류를 선택하세요</option>
+                            </select>
+                        </div>
+                        <small class="form-help">먼저 대분류를 선택한 후 소분류를 선택하세요. 네이버 블로그 카테고리와 동일한 구조입니다.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="required">블로그 레벨</label>
+                        <select id="generate-blog-level" required>
+                            <option value="new">신규 (2000~2500자)</option>
+                            <option value="mid" selected>중급 (2500~3000자)</option>
+                            <option value="high">고지수 (3000~3500자 이상)</option>
+                        </select>
+                        <small class="form-help">글의 길이와 상세도를 선택하세요. 고지수 레벨은 FAQ와 더 많은 섹션을 포함합니다.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="required">상위 블로그 참고</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="generate-use-auto-reference" checked>
+                                <span>키워드 기준으로 상위 블로그를 자동으로 수집·분석해서 참고하기</span>
+                            </label>
+                        </div>
+                        <div class="form-group" style="margin-top: 8px;">
+                            <label>자동 수집 블로그 개수 (1~10)</label>
+                            <input type="number" id="generate-reference-count" value="3" min="1" max="10">
+                        </div>
+                        <small class="form-help">
+                            체크 해제 시 자동 수집을 사용하지 않습니다. 아래에서 직접 참고할 블로그 URL을 추가할 수 있습니다.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>참고용 블로그 URL
+                            <span style="font-weight: normal; color: #666; font-size: 0.9em;">
+                                (한 줄에 하나씩)
+                            </span>
+                        </label>
+                        <div id="reference-blogs-container" class="external-links-container">
+                            <!-- JS에서 행이 동적으로 추가됩니다 -->
+                        </div>
+                        <button type="button" id="add-reference-blog-btn" class="btn-secondary-small">+ 블로그 추가</button>
+                        <small class="form-help">
+                            상위 블로그 자동 수집과 별도로, 직접 참고하고 싶은 블로그 글 URL을 추가할 수 있습니다.
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>추가 금칙어 <span style="font-weight: normal; color: #666; font-size: 0.9em;">(선택사항)</span></label>
+                        <input type="text" id="generate-ban-words" placeholder="예: 추가금칙어1, 추가금칙어2" maxlength="200">
+                        <small class="form-help">기본 금칙어가 자동으로 적용됩니다. 여기에 추가로 적용할 금칙어를 쉼표(,)로 구분하여 입력하세요. (최대 200자)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>외부 링크
+                            <span style="font-weight: normal; color: #666; font-size: 0.9em;">
+                                (한 줄에 하나씩, 신규 레벨에서는 비활성화)
+                            </span>
+                        </label>
+                        <div id="external-links-container" class="external-links-container">
+                            <!-- JS에서 행이 동적으로 추가됩니다 -->
+                        </div>
+                        <button type="button" id="add-external-link-btn" class="btn-secondary-small">+ 링크 추가</button>
+                        <small class="form-help">
+                            블로그 본문에 자연스럽게 넣고 싶은 외부 링크를 입력하세요. 신규 레벨(new)에서는 사용되지 않습니다.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>이미지 생성</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="generate-images" checked>
+                                <span>GPT가 생성한 이미지 마커에 대해 자동으로 이미지 생성하기</span>
+                            </label>
+                        </div>
+                        <small class="form-help">
+                            체크 해제 시 이미지 마커는 생성되지만 실제 이미지는 생성하지 않습니다. 이미지 생성에는 Gemini API가 사용됩니다.
+                        </small>
+                    </div>
+                    
+                    <button onclick="handleGenerateBlog()">블로그 생성</button>
                 </div>
             </div>
 
             <div id="result" class="result" style="display: none;">
-                <div id="result-content"></div>
+                <div class="result-header">
+                    <h3>생성된 블로그 내용</h3>
+                    <div class="result-actions">
+                        <button onclick="copyBlogContentToNaverEditor()" class="btn-copy">📋 네이버 에디터에 복사하기</button>
+                    </div>
+                </div>
+                
+                <div class="blog-editor-sections">
+                    <!-- 제목 영역 -->
+                    <div class="editor-section">
+                        <label class="section-label">제목</label>
+                        <div id="result-title" contenteditable="true" class="blog-editor blog-editor-title"></div>
+                    </div>
+                    
+                    <!-- 본문 영역 -->
+                    <div class="editor-section">
+                        <label class="section-label">본문</label>
+                        <div id="result-body" contenteditable="true" class="blog-editor blog-editor-body"></div>
+                    </div>
+                    
+                    <!-- 태그 영역 -->
+                    <div class="editor-section">
+                        <label class="section-label">태그</label>
+                        <div id="result-tags" contenteditable="true" class="blog-editor blog-editor-tags"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

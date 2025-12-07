@@ -1,0 +1,228 @@
+{
+  "title": {
+    "content": "아임웹을 활용한 성공적인 홈페이지 제작 전략",
+    "style": {
+      "font_size": 26,
+      "bold": true
+    }
+  },
+  "introduction": {
+    "content": "디지털 시대에 홈페이지는 비즈니스의 얼굴입니다. 아임웹은 이를 보다 쉽고 효과적으로 만들 수 있는 도구를 제공합니다. 이번 글에서는 아임웹을 활용해 성공적으로 홈페이지를 제작하는 방법을 알아보겠습니다.",
+    "style": {
+      "font_size": 16
+    }
+  },
+  "body": [
+    {
+      "subtitle": {
+        "content": "아임웹의 주요 기능과 장점",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "아임웹은 사용자가 직접 쉽게 사용할 수 있는 직관적인 인터페이스를 제공하며, 전문적인 디자인을 구현할 수 있도록 다양한 템플릿을 지원합니다. 또한, 모바일 최적화가 자동으로 이루어져, 다양한 디바이스에서 일관된 사용자 경험을 제공합니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            "직관적인 드래그 앤 드롭 편집 기능",
+            "다양한 디자인 템플릿 제공",
+            "자동 모바일 최적화"
+          ],
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "image_placeholder",
+          "placeholder": "[아임웹의 인터페이스 설명_이미지 삽입1]",
+          "image_prompt": "주제: 아임웹 인터페이스\n상세 묘사:\n- 외형: 깔끔한 UI\n- 표정: 없음\n스타일:\n- 화풍: 현대적인 UX 디자인\n- 조명: 밝은 배경\n제한:\n- 왜곡 없음, 텍스트 없음",
+          "style": {
+            "font_size": 14,
+            "italic": true,
+            "color": "#999"
+          }
+        }
+      ]
+    },
+    {
+      "subtitle": {
+        "content": "아임웹을 활용한 사용자 경험 개선",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "사용자 경험(UX)은 성공적인 홈페이지의 핵심 요소입니다. 아임웹은 이러한 UX를 향상시키기 위해 다양한 기능을 제공하며, 사용자 피드백을 반영할 수 있는 기능도 지원합니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "quote",
+          "content": "UX 개선은 단순히 디자인을 넘어서 사용자와의 상호작용을 최적화하는 과정입니다.",
+          "style": {
+            "quote": true,
+            "font_size": 16
+          }
+        }
+      ]
+    },
+    {
+      "subtitle": {
+        "content": "효율적인 홈페이지 관리와 유지보수",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "홈페이지를 제작한 후에는 지속적인 관리와 유지보수가 필요합니다. 아임웹은 이러한 과정에서 필요한 도구를 제공하여 관리의 효율성을 높입니다. 예를 들어, 실시간으로 콘텐츠를 수정하거나 새로운 기능을 쉽게 추가할 수 있습니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            "실시간 콘텐츠 수정",
+            "간편한 신규 기능 추가",
+            "자동 백업 및 복원"
+          ],
+          "style": {
+            "font_size": 16
+          }
+        }
+      ]
+    }
+  ],
+  "conclusion": {
+    "content": "아임웹은 비즈니스의 성공적인 디지털 전환을 지원하는 강력한 도구입니다. 직관적이고 사용이 쉬운 인터페이스 덕분에 누구나 쉽게 접근할 수 있으며, 전문적인 웹사이트를 제작할 수 있는 가능성을 제공합니다. 이제 아임웹을 활용해 당신만의 특별한 홈페이지를 만들어보세요.",
+    "style": {
+      "font_size": 16,
+      "bold": true
+    }
+  },
+  "faq": [
+    {
+      "q": {
+        "content": "아임웹을 사용하면 디자인 수정이 쉬운가요?",
+        "style": {
+          "font_size": 16
+        }
+      },
+      "a": {
+        "content": "네, 아임웹은 드래그 앤 드롭 방식의 편집 기능을 제공하여 디자인 수정이 매우 용이합니다.",
+        "style": {
+          "font_size": 16
+        }
+      }
+    },
+    {
+      "q": {
+        "content": "모바일 최적화는 어떻게 이루어지나요?",
+        "style": {
+          "font_size": 16
+        }
+      },
+      "a": {
+        "content": "아임웹은 자동으로 모바일 최적화를 지원하여, 별도의 작업 없이도 다양한 기기에서 일관된 사용자 경험을 제공합니다.",
+        "style": {
+          "font_size": 16
+        }
+      }
+    }
+  ],
+  "tags": [
+    "아임웹",
+    "홈페이지 제작",
+    "웹디자인",
+    "사용자 경험",
+    "디지털 전환"
+  ],
+  "generated_images": [
+    {
+      "index": 1,
+      "placeholder": "[아임웹의 인터페이스 설명_이미지 삽입1]",
+      "image_path": "20251208_11/images/image_1_20251208_014609.png",
+      "full_path": "D:\\DMA_dev\\DMaLab\\dmalab_back\\blog\\create_naver\\20251208_11\\images\\image_1_20251208_014609.png"
+    }
+  ],
+  "analysis": {
+    "reference_urls": [
+      "https://blog.naver.com/byfinder/223621187053",
+      "https://blog.naver.com/simeon49/224054975462",
+      "https://blog.naver.com/dashover/224054980318"
+    ],
+    "used_reference_urls": [
+      "https://blog.naver.com/byfinder/223621187053",
+      "https://blog.naver.com/simeon49/224054975462",
+      "https://blog.naver.com/dashover/224054980318"
+    ],
+    "combined_body_length": 10175,
+    "top_keywords": [
+      {
+        "keyword": "홈페이지",
+        "count": 42,
+        "rank": 1
+      },
+      {
+        "keyword": "임웹",
+        "count": 40,
+        "rank": 2
+      },
+      {
+        "keyword": "사이트",
+        "count": 23,
+        "rank": 3
+      },
+      {
+        "keyword": "제작",
+        "count": 21,
+        "rank": 4
+      },
+      {
+        "keyword": "관리",
+        "count": 21,
+        "rank": 5
+      },
+      {
+        "keyword": "수정",
+        "count": 20,
+        "rank": 6
+      },
+      {
+        "keyword": "전문",
+        "count": 18,
+        "rank": 7
+      },
+      {
+        "keyword": "직접",
+        "count": 18,
+        "rank": 8
+      },
+      {
+        "keyword": "사용자",
+        "count": 16,
+        "rank": 9
+      },
+      {
+        "keyword": "디자인",
+        "count": 15,
+        "rank": 10
+      }
+    ]
+  }
+}

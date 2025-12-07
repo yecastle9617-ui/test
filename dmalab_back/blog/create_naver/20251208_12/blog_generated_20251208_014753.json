@@ -1,0 +1,214 @@
+{
+  "title": {
+    "content": "아임웹 홈페이지 제작 초보 가이드",
+    "style": {
+      "font_size": 26,
+      "bold": true
+    }
+  },
+  "introduction": {
+    "content": "아임웹은 비즈니스를 위한 웹사이트 제작 플랫폼으로, 사용자 친화적인 인터페이스와 다양한 기능을 제공합니다.\n초보자도 손쉽게 웹사이트를 제작할 수 있는 것이 큰 장점입니다.\n이번 글에서는 아임웹을 활용해 홈페이지를 제작하는 방법과 주의할 점들을 알아보겠습니다.",
+    "style": {
+      "font_size": 16
+    }
+  },
+  "body": [
+    {
+      "subtitle": {
+        "content": "아임웹의 주요 기능과 장점",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "아임웹은 다양한 템플릿과 드래그 앤 드롭 기능으로 사용자가 손쉽게 웹사이트를 구성할 수 있도록 도와줍니다. 특히, 코딩 지식이 없는 초보자에게도 적합한 플랫폼으로, 웹사이트 제작에 필요한 모든 도구를 제공하고 있습니다. 이러한 기능 덕분에 시간과 비용을 절약할 수 있습니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": "아임웹의 또 다른 장점은 모바일 최적화입니다. 현대 사회에서 많은 사용자가 모바일 기기를 통해 웹사이트에 접근하고 있기 때문에, 모바일 친화적인 디자인은 필수적입니다. 아임웹은 자동으로 모바일에 최적화된 레이아웃을 제공하여 사용자 경험을 향상시킵니다.",
+          "style": {
+            "font_size": 16
+          }
+        }
+      ]
+    },
+    {
+      "subtitle": {
+        "content": "홈페이지 제작 과정",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "아임웹으로 홈페이지를 제작하려면 먼저 계정을 생성하고, 원하는 템플릿을 선택해야 합니다. 템플릿을 선택한 후에는 드래그 앤 드롭 방식으로 쉽게 페이지를 구성할 수 있습니다. 필요한 요소를 추가하거나 제거함으로써 자신만의 독창적인 웹사이트를 만들 수 있습니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            "계정 생성 및 로그인",
+            "템플릿 선택",
+            "페이지 구성 및 편집",
+            "모바일 최적화 확인",
+            "도메인 연결 및 배포"
+          ],
+          "style": {
+            "font_size": 16
+          }
+        }
+      ]
+    },
+    {
+      "subtitle": {
+        "content": "아임웹 사용 시 유의해야 할 점",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "아임웹을 사용하면서 몇 가지 주의해야 할 점들이 있습니다. 첫째, 디자인 요소에 너무 의존하기보다는 콘텐츠를 우선시해야 합니다. 웹사이트의 목적이 명확해야 하며, 방문자에게 필요한 정보를 제공하는 것이 중요합니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": "둘째, SEO 최적화를 고려해야 합니다. 검색 엔진에서 잘 노출되기 위해서는 키워드를 전략적으로 배치하고, 메타 태그를 잘 설정해야 합니다. 아임웹은 이러한 과정에서도 사용자를 돕는 여러 기능을 제공합니다.",
+          "style": {
+            "font_size": 16
+          }
+        }
+      ]
+    },
+    {
+      "subtitle": {
+        "content": "효율적인 웹사이트 운영 팁",
+        "style": {
+          "font_size": 20,
+          "bold": true
+        }
+      },
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": "웹사이트를 운영하면서 가장 중요한 것은 지속적인 업데이트입니다. 최신 정보를 제공하고, 사용자 피드백을 반영하여 사이트를 개선하는 것이 방문자 유지에 효과적입니다. 또한, 분석 도구를 활용하여 방문자 통계를 파악하고, 이를 바탕으로 사이트를 최적화하는 것이 필요합니다.",
+          "style": {
+            "font_size": 16
+          }
+        },
+        {
+          "type": "image_placeholder",
+          "placeholder": "[아임웹 홈페이지 제작 화면_이미지 삽입1]",
+          "image_prompt": "주제: 아임웹 홈페이지 제작 화면\n상세 묘사:\n- 외형: 다양한 템플릿이 나열된 화면\n- 배경: 밝고 깔끔한 인터페이스\n스타일:\n- 화풍: 현실적인 웹 인터페이스\n- 조명: 자연광 모니터 화면\n- 색감: 부드러운 파스텔톤\n제한:\n- 왜곡 없음, 텍스트 없음",
+          "style": {
+            "font_size": 14,
+            "italic": true,
+            "color": "#999"
+          }
+        }
+      ]
+    }
+  ],
+  "conclusion": {
+    "content": "아임웹을 활용하면 누구나 쉽게 웹사이트를 제작할 수 있습니다.\n기본적인 기능 이해와 주의할 점을 고려하여, 자신의 목표에 맞는 효과적인 웹사이트를 운영해 보세요.\n꾸준한 업데이트와 개선을 통해 성공적인 온라인 비즈니스를 구축할 수 있습니다.",
+    "style": {
+      "font_size": 16,
+      "bold": true
+    }
+  },
+  "faq": [],
+  "tags": [
+    "아임웹",
+    "홈페이지 제작",
+    "웹사이트 운영",
+    "모바일 최적화",
+    "SEO 최적화"
+  ],
+  "generated_images": [
+    {
+      "index": 1,
+      "placeholder": "[아임웹 홈페이지 제작 화면_이미지 삽입1]",
+      "image_path": "20251208_12/images/image_1_20251208_014753.png",
+      "full_path": "D:\\DMA_dev\\DMaLab\\dmalab_back\\blog\\create_naver\\20251208_12\\images\\image_1_20251208_014753.png"
+    }
+  ],
+  "analysis": {
+    "reference_urls": [
+      "https://blog.naver.com/byfinder/223621187053",
+      "https://blog.naver.com/kingstargirl/224042935240",
+      "https://blog.naver.com/rlathgml0726/223726908943"
+    ],
+    "used_reference_urls": [
+      "https://blog.naver.com/byfinder/223621187053",
+      "https://blog.naver.com/kingstargirl/224042935240",
+      "https://blog.naver.com/rlathgml0726/223726908943"
+    ],
+    "combined_body_length": 9096,
+    "top_keywords": [
+      {
+        "keyword": "홈페이지",
+        "count": 38,
+        "rank": 1
+      },
+      {
+        "keyword": "임웹",
+        "count": 37,
+        "rank": 2
+      },
+      {
+        "keyword": "제작",
+        "count": 34,
+        "rank": 3
+      },
+      {
+        "keyword": "수정",
+        "count": 30,
+        "rank": 4
+      },
+      {
+        "keyword": "쇼핑몰",
+        "count": 30,
+        "rank": 5
+      },
+      {
+        "keyword": "관리",
+        "count": 24,
+        "rank": 6
+      },
+      {
+        "keyword": "사용자",
+        "count": 17,
+        "rank": 7
+      },
+      {
+        "keyword": "직접",
+        "count": 17,
+        "rank": 8
+      },
+      {
+        "keyword": "운영",
+        "count": 13,
+        "rank": 9
+      },
+      {
+        "keyword": "고객",
+        "count": 13,
+        "rank": 10
+      }
+    ]
+  }
+}

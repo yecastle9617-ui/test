@@ -32,26 +32,36 @@
 
 ### 백엔드 서버 실행
 
+**개발 모드 (자동 재시작):**
 ```bash
 cd dmalab_back
 pip install -r requirements.txt
-python api/app.py
+python -m uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 # 또는
-uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
+start_dev.bat      # Windows
+./start_dev.sh     # Linux/Mac
+```
+
+**일반 실행:**
+```bash
+cd dmalab_back
+python api/app.py
 ```
 
 서버가 실행되면:
 - API 문서: http://localhost:8000/docs
 - API 루트: http://localhost:8000
 
-자세한 내용은 [dmalab_back/API_README.md](dmalab_back/API_README.md)를 참고하세요.
-
-### CLI로 실행 (기존 방식)
+### 프론트엔드 실행
 
 ```bash
-cd dmalab_back
-python cli/main.py
+cd dmalab_front
+python -m http.server 3000
 ```
+
+브라우저에서 `http://localhost:3000/index.html` 접속
+
+자세한 내용은 각 디렉토리의 README.md를 참고하세요.
 
 ## 주요 기능
 
@@ -68,7 +78,10 @@ python cli/main.py
 
 ### 프론트엔드 (dmalab_front)
 
-- 프론트엔드 프로젝트 예정
+- **네이버 상위 블로그 분석**: 키워드로 상위 블로그를 검색하고 분석
+- **GPT 블로그 생성**: GPT API를 사용한 블로그 글 자동 생성
+- **이미지 생성**: Gemini API를 사용한 이미지 자동 생성
+- **순수 HTML/JavaScript**: React 없이 순수 HTML/JS로 구현
 
 ## API 엔드포인트
 

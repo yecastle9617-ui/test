@@ -5,28 +5,36 @@ FastAPI 서버 애플리케이션
 
 import sys
 from pathlib import Path
-
-# 프로젝트 루트를 sys.path에 추가
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+import os
+import logging
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Optional, Dict, Any
+from urllib.parse import quote, unquote, urlparse
+import hashlib
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-import os
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 import uvicorn
 import requests
-from urllib.parse import quote, unquote, urlparse
-import hashlib
-from pathlib import Path
 
 from crawler.naver_crawler import NaverCrawler
 from analyzer.morpheme_analyzer import MorphemeAnalyzer
+from blog.gpt_generator import generate_blog_content, save_blog_json
+
+# 로거 설정
+logger = logging.getLogger("dmalab.api")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -41,8 +49,15 @@ project_dir = current_dir.parent
 NAVER_CRAWLER_DIR = project_dir / "naver_crawler"
 NAVER_CRAWLER_DIR.mkdir(parents=True, exist_ok=True)
 
+# blog/create_naver 디렉토리 설정
+CREATE_NAVER_DIR = project_dir / "blog" / "create_naver"
+CREATE_NAVER_DIR.mkdir(parents=True, exist_ok=True)
+
 # 정적 파일 서빙 (naver_crawler 디렉토리 전체)
 app.mount("/static/naver_crawler", StaticFiles(directory=str(NAVER_CRAWLER_DIR)), name="static_naver_crawler")
+
+# 정적 파일 서빙 (blog/create_naver 디렉토리 전체)
+app.mount("/static/blog/create_naver", StaticFiles(directory=str(CREATE_NAVER_DIR)), name="static_create_naver")
 
 # CORS 설정 (필요시 수정)
 app.add_middleware(
@@ -166,6 +181,48 @@ class ProcessResponse(BaseModel):
     results: List[ProcessResult]
 
 
+class GenerateBlogRequest(BaseModel):
+    """GPT 블로그 생성 요청 모델"""
+    keywords: str = Field(..., description="블로그 글의 주요 키워드")
+    category: str = Field(default="일반", description="카테고리")
+    blog_level: str = Field(default="mid", description="블로그 레벨 (new, mid, high)")
+    ban_words: Optional[List[str]] = Field(default=None, description="금칙어 목록")
+    analysis_json: Optional[Dict[str, Any]] = Field(default=None, description="상위 글 분석 JSON")
+    use_auto_reference: bool = Field(
+        default=False,
+        description="키워드 기반 상위 블로그 자동 수집·분석 사용 여부"
+    )
+    reference_count: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="자동 수집할 상위 블로그 개수 (1~10)"
+    )
+    manual_reference_urls: Optional[List[str]] = Field(
+        default=None,
+        description="사용자가 직접 추가한 참고 블로그 URL 목록"
+    )
+    external_links: Optional[List[str]] = Field(
+        default=None,
+        description="본문에 자연스럽게 삽입할 외부 링크 목록 (new 레벨에서는 무시됨)"
+    )
+    generate_images: bool = Field(
+        default=True,
+        description="이미지 마커에 대해 자동으로 이미지 생성할지 여부"
+    )
+    model: str = Field(default="gpt-4o", description="사용할 GPT 모델")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="생성 온도")
+    save_json: bool = Field(default=True, description="JSON 파일로 저장 여부")
+
+
+class GenerateBlogResponse(BaseModel):
+    """GPT 블로그 생성 응답 모델"""
+    success: bool
+    blog_content: Optional[Dict[str, Any]] = None
+    json_path: Optional[str] = None
+    error: Optional[str] = None
+
+
 # ===== 유틸리티 함수 =====
 
 def get_output_directory(count: int = 10):
@@ -204,6 +261,110 @@ def get_output_directory(count: int = 10):
         os.makedirs(top_dir, exist_ok=True)
     
     return output_dir
+
+
+def build_reference_analysis(
+    keyword: str,
+    use_auto_reference: bool,
+    reference_count: int,
+    manual_urls: Optional[List[str]] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    키워드와 참고용 블로그 URL들을 기반으로 상위 블로그 본문을 수집·분석하여
+    GPT 프롬프트에 전달할 analysis_json을 생성합니다.
+    """
+    from analyzer.morpheme_analyzer import MorphemeAnalyzer
+
+    try:
+        reference_urls: List[str] = []
+
+        # 1) 키워드 기반 상위 블로그 자동 수집
+        if use_auto_reference:
+            crawler = NaverCrawler()
+            logger.info(f"[GENERATE][REF] auto reference enabled, keyword={keyword!r}, n={reference_count}")
+            auto_list = crawler.get_top_n_blog_info(keyword, n=reference_count)
+            for item in auto_list or []:
+                url = item.get("url")
+                if url and url not in reference_urls:
+                    reference_urls.append(url)
+
+        # 2) 사용자가 직접 추가한 참고 블로그 URL 병합
+        if manual_urls:
+            for url in manual_urls:
+                u = (url or "").strip()
+                if u and u not in reference_urls:
+                    reference_urls.append(u)
+
+        if not reference_urls:
+            logger.info("[GENERATE][REF] no reference urls provided/collected")
+            return None
+
+        # 3) 각 URL에서 본문 텍스트 수집
+        crawler = NaverCrawler()
+        body_texts: List[str] = []
+        used_urls: List[str] = []
+
+        for url in reference_urls:
+            try:
+                result = crawler.extract_blog_body_with_media(url)
+                body_text = result.get("body_text") if result else None
+                if not body_text:
+                    logger.warning(f"[GENERATE][REF] no body_text for reference url={url!r}")
+                    continue
+                text = str(body_text).strip()
+                if not text:
+                    continue
+                body_texts.append(text)
+                used_urls.append(url)
+            except Exception as e:
+                logger.warning(f"[GENERATE][REF] error extracting body for url={url!r}: {e}")
+                continue
+
+        if not body_texts:
+            logger.warning("[GENERATE][REF] no usable body_text from any reference urls")
+            return {
+                "reference_urls": reference_urls,
+                "used_reference_urls": [],
+                "combined_body_length": 0,
+                "top_keywords": []
+            }
+
+        combined_text = "\n\n".join(body_texts)
+
+        # 4) 키워드 분석
+        analyzer = MorphemeAnalyzer(use_konlpy=True)
+        keyword_stats = analyzer.get_keyword_ranking(
+            combined_text,
+            top_n=10,
+            min_length=2,
+            min_count=2
+        )
+
+        top_keywords = [
+            {
+                "keyword": k,
+                "count": v.get("count", 0),
+                "rank": v.get("rank", 0)
+            }
+            for k, v in keyword_stats.items()
+        ]
+
+        analysis = {
+            "reference_urls": reference_urls,
+            "used_reference_urls": used_urls,
+            "combined_body_length": len(combined_text),
+            "top_keywords": top_keywords
+        }
+
+        logger.info(
+            f"[GENERATE][REF] analysis built: refs={len(reference_urls)}, "
+            f"used={len(used_urls)}, top_keywords={len(top_keywords)}"
+        )
+        return analysis
+
+    except Exception as e:
+        logger.exception(f"[GENERATE][REF] analysis error for keyword={keyword!r}: {e}")
+        return None
 
 
 def process_single_blog(
@@ -344,6 +505,7 @@ async def search_blogs(request: SearchRequest):
     - **n**: 가져올 블로그 개수 (1-10)
     """
     try:
+        logger.info(f"[SEARCH] keyword={request.keyword!r}, n={request.n}")
         crawler = NaverCrawler()
         blog_list = crawler.get_top_n_blog_info(request.keyword, n=request.n)
         
@@ -351,6 +513,7 @@ async def search_blogs(request: SearchRequest):
             raise HTTPException(status_code=404, detail="블로그 글을 찾을 수 없습니다.")
         
         blogs = [BlogInfo(title=blog['title'], url=blog['url']) for blog in blog_list]
+        logger.info(f"[SEARCH] found {len(blogs)} blogs for keyword={request.keyword!r}")
         
         return SearchResponse(
             keyword=request.keyword,
@@ -358,6 +521,7 @@ async def search_blogs(request: SearchRequest):
             blogs=blogs
         )
     except Exception as e:
+        logger.exception(f"[SEARCH] error for keyword={request.keyword!r}: {e}")
         raise HTTPException(status_code=500, detail=f"검색 중 오류 발생: {str(e)}")
 
 
@@ -370,10 +534,12 @@ async def crawl_blog(request: CrawlRequest):
     - **title**: 블로그 제목 (선택사항)
     """
     try:
+        logger.info(f"[CRAWL] single url={request.url!r}, title={request.title!r}")
         crawler = NaverCrawler()
         result = crawler.extract_blog_body_with_media(request.url)
         
         if not result or not result.get('body_text'):
+            logger.warning(f"[CRAWL] no body_text extracted for url={request.url!r}")
             return CrawlResponse(
                 success=False,
                 url=request.url,
@@ -383,6 +549,10 @@ async def crawl_blog(request: CrawlRequest):
         body_text = result['body_text']
         image_urls = result.get('image_urls', [])
         link_urls = result.get('link_urls', [])
+        logger.info(
+            f"[CRAWL] success url={request.url!r}, "
+            f"body_length={len(body_text)}, images={len(image_urls)}, links={len(link_urls)}"
+        )
         
         # txt 파일 저장 (선택사항)
         txt_path = None
@@ -400,6 +570,7 @@ async def crawl_blog(request: CrawlRequest):
             txt_path=txt_path
         )
     except Exception as e:
+        logger.exception(f"[CRAWL] error for url={request.url!r}: {e}")
         return CrawlResponse(
             success=False,
             url=request.url,
@@ -494,6 +665,10 @@ async def analyze_keywords(request: AnalyzeRequest):
     - **min_count**: 최소 출현 횟수
     """
     try:
+        logger.info(
+            f"[ANALYZE] text_length={len(request.text)}, "
+            f"top_n={request.top_n}, min_length={request.min_length}, min_count={request.min_count}"
+        )
         analyzer = MorphemeAnalyzer(use_konlpy=True)
         
         # 키워드 통계 가져오기
@@ -509,12 +684,15 @@ async def analyze_keywords(request: AnalyzeRequest):
             for k, v in keyword_stats.items()
         ]
         
-        return AnalyzeResponse(
+        response = AnalyzeResponse(
             success=True,
             total_keywords=len(keywords),
             keywords=keywords
         )
+        logger.info(f"[ANALYZE] success total_keywords={len(keywords)}")
+        return response
     except Exception as e:
+        logger.exception(f"[ANALYZE] error: {e}")
         return AnalyzeResponse(
             success=False,
             total_keywords=0,
@@ -536,6 +714,11 @@ async def process_blogs(request: ProcessRequest):
     - **min_count**: 최소 출현 횟수
     """
     try:
+        logger.info(
+            f"[PROCESS] keyword={request.keyword!r}, n={request.n}, "
+            f"analyze={request.analyze}, top_n={request.top_n}, "
+            f"min_length={request.min_length}, min_count={request.min_count}"
+        )
         # 1. 블로그 검색
         crawler = NaverCrawler()
         blog_list = crawler.get_top_n_blog_info(request.keyword, n=request.n)
@@ -543,6 +726,7 @@ async def process_blogs(request: ProcessRequest):
         if not blog_list or len(blog_list) == 0:
             raise HTTPException(status_code=404, detail="블로그 글을 찾을 수 없습니다.")
         
+        logger.info(f"[PROCESS] search found {len(blog_list)} blogs")
         # 2. 출력 디렉토리 생성 (요청한 개수만큼만)
         output_dir = get_output_directory(count=request.n)
         
@@ -570,6 +754,7 @@ async def process_blogs(request: ProcessRequest):
                     result = future.result()
                     results.append(result)
                 except Exception as e:
+                    logger.exception(f"[PROCESS] error processing rank={rank}: {e}")
                     results.append(ProcessResult(
                         rank=rank,
                         title=blog_list[rank-1]['title'] if rank <= len(blog_list) else "알 수 없음",
@@ -582,6 +767,10 @@ async def process_blogs(request: ProcessRequest):
         results.sort(key=lambda x: x.rank)
         
         success_count = sum(1 for r in results if r.success)
+        logger.info(
+            f"[PROCESS] done keyword={request.keyword!r}, "
+            f"total={len(results)}, success={success_count}"
+        )
         
         return ProcessResponse(
             keyword=request.keyword,
@@ -594,6 +783,7 @@ async def process_blogs(request: ProcessRequest):
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception(f"[PROCESS] fatal error: {e}")
         raise HTTPException(status_code=500, detail=f"처리 중 오류 발생: {str(e)}")
 
 
@@ -770,6 +960,208 @@ async def proxy_image(url: str, output_dir: Optional[str] = None, image_index: O
         raise HTTPException(status_code=500, detail=f"이미지 프록시 중 오류 발생: {str(e)}")
 
 
+@app.get("/api/default-ban-words")
+async def get_default_ban_words():
+    """
+    기본 금칙어 목록을 반환합니다.
+    """
+    from blog.gpt_generator import load_default_ban_words
+    return {"default_ban_words": load_default_ban_words()}
+
+
+@app.post("/api/generate-blog", response_model=GenerateBlogResponse)
+async def generate_blog(request: GenerateBlogRequest):
+    """
+    GPT API를 사용하여 블로그 글을 생성합니다.
+    
+    - **keywords**: 블로그 글의 주요 키워드
+    - **category**: 카테고리 (기본값: "일반")
+    - **blog_level**: 블로그 레벨 ("new", "mid", "high", 기본값: "mid")
+    - **ban_words**: 추가 금칙어 목록 (선택사항, 기본 금칙어와 병합됨)
+    - **analysis_json**: 상위 글 분석 JSON (선택사항)
+    - **external_links**: 본문에 자연스럽게 삽입할 외부 링크 목록 (선택사항, new 레벨에서는 무시)
+    - **model**: 사용할 GPT 모델 (기본값: "gpt-4o")
+    - **temperature**: 생성 온도 (기본값: 0.7)
+    - **save_json**: JSON 파일로 저장 여부 (기본값: True)
+    """
+    try:
+        # 1) 상위 블로그 자동 수집/사용자 지정 참고 URL 기반 analysis_json 구성
+        analysis_json = request.analysis_json
+        if analysis_json is None and (request.use_auto_reference or (request.manual_reference_urls or [])):
+            logger.info(
+                f"[GENERATE] building reference analysis: "
+                f"keyword={request.keywords!r}, "
+                f"use_auto_reference={request.use_auto_reference}, "
+                f"reference_count={request.reference_count}, "
+                f"manual_refs={len(request.manual_reference_urls or [])}"
+            )
+            analysis_json = build_reference_analysis(
+                keyword=request.keywords,
+                use_auto_reference=request.use_auto_reference,
+                reference_count=request.reference_count,
+                manual_urls=request.manual_reference_urls or []
+            )
+
+        logger.info(
+            f"[GENERATE] keywords={request.keywords!r}, "
+            f"category={request.category!r}, level={request.blog_level!r}, "
+            f"ban_words_count={len(request.ban_words or [])}, "
+            f"has_analysis={analysis_json is not None}, "
+            f"use_auto_reference={request.use_auto_reference}, "
+            f"reference_count={request.reference_count}, "
+            f"manual_refs={len(request.manual_reference_urls or [])}, "
+            f"external_links_count={len(request.external_links or []) if request.blog_level != 'new' else 0}"
+        )
+
+        # 2) 블로그 글 생성 (기본 금칙어는 generate_blog_content 내부에서 자동 병합됨)
+        blog_content = generate_blog_content(
+            keywords=request.keywords,
+            category=request.category,
+            blog_level=request.blog_level,
+            ban_words=request.ban_words or [],
+            analysis_json=analysis_json,
+            model=request.model,
+            temperature=request.temperature,
+            # 신규 레벨(new)에서는 외부 링크를 사용하지 않음
+            external_links=None if request.blog_level == "new" else (request.external_links or None)
+        )
+        
+        # 3) 이미지 플레이스홀더 추출 및 이미지 생성 (generate_images가 True인 경우만)
+        from blog.image_generator import generate_image, build_image_prompt
+        from blog.gpt_generator import extract_image_placeholders, get_create_naver_directory
+        
+        image_placeholders = extract_image_placeholders(blog_content)
+        output_dir = None
+        
+        if image_placeholders:
+            if request.generate_images:
+                logger.info(f"[GENERATE] 이미지 플레이스홀더 발견: {len(image_placeholders)}개, 이미지 생성 활성화")
+            else:
+                logger.info(f"[GENERATE] 이미지 플레이스홀더 발견: {len(image_placeholders)}개, 이미지 생성 비활성화 (체크박스 해제)")
+        
+        if image_placeholders and request.generate_images:
+            
+            # 출력 디렉토리 준비 (JSON 저장 위치와 동일)
+            if request.save_json:
+                output_dir = get_create_naver_directory()
+            else:
+                # JSON 저장하지 않아도 이미지만 저장할 수 있도록 임시 디렉토리 생성
+                output_dir = get_create_naver_directory()
+            
+            # 각 이미지 플레이스홀더에 대해 이미지 생성
+            generated_images = []
+            for img_placeholder in image_placeholders:
+                try:
+                    image_prompt = build_image_prompt(img_placeholder["image_prompt"])
+                    image_path = generate_image(
+                        image_prompt=image_prompt,
+                        output_dir=output_dir,
+                        image_index=img_placeholder["index"]
+                    )
+                    
+                    if image_path:
+                        # 상대 경로로 변환 (프론트엔드에서 접근 가능하도록)
+                        # output_dir는 blog/create_naver/yyyymmdd_N 형식
+                        # CREATE_NAVER_DIR 기준으로 상대 경로 계산 (날짜 디렉토리 포함)
+                        relative_to_base = image_path.relative_to(CREATE_NAVER_DIR)
+                        # Windows 경로 구분자를 슬래시로 변환
+                        relative_path = str(relative_to_base).replace('\\', '/')
+                        generated_images.append({
+                            "index": img_placeholder["index"],
+                            "placeholder": img_placeholder["placeholder"],
+                            "image_path": relative_path,
+                            "full_path": str(image_path)
+                        })
+                        logger.info(f"[GENERATE] 이미지 생성 완료: {relative_path}")
+                    else:
+                        logger.warning(f"[GENERATE] 이미지 생성 실패: index={img_placeholder['index']}")
+                except Exception as e:
+                    logger.error(f"[GENERATE] 이미지 생성 오류: index={img_placeholder['index']}, error={str(e)}")
+            
+            # 생성된 이미지 정보를 blog_content에 추가
+            if generated_images:
+                blog_content["generated_images"] = generated_images
+                logger.info(f"[GENERATE] 생성된 이미지 정보 추가: {len(generated_images)}개")
+        
+        # 분석된 키워드 정보(analysis_json)를 blog_content에 추가
+        if analysis_json:
+            blog_content["analysis"] = analysis_json
+            logger.info(f"[GENERATE] 분석 정보 추가: top_keywords={len(analysis_json.get('top_keywords', []))}개")
+        
+        # JSON 파일로 저장
+        json_path = None
+        if request.save_json:
+            # blog/create_naver/yyyymmdd_N 형식으로 자동 저장
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"blog_generated_{timestamp}.json"
+            json_path = save_blog_json(blog_content, output_dir=output_dir, filename=filename)
+            logger.info(f"[GENERATE] json saved: {json_path}")
+        
+        return GenerateBlogResponse(
+            success=True,
+            blog_content=blog_content,
+            json_path=json_path
+        )
+        
+    except ValueError as e:
+        return GenerateBlogResponse(
+            success=False,
+            error=f"입력값 오류: {str(e)}"
+        )
+    except Exception as e:
+        logger.exception(f"[GENERATE] error: {e}")
+        return GenerateBlogResponse(
+            success=False,
+            error=f"블로그 생성 중 오류 발생: {str(e)}"
+        )
+
+
+@app.get("/api/blog-json/{filename:path}")
+async def get_blog_json(filename: str):
+    """
+    저장된 블로그 JSON 파일을 조회합니다.
+    
+    - **filename**: JSON 파일명 (예: blog_generated_20251205_123456.json)
+    """
+    try:
+        current_dir = Path(__file__).parent
+        project_dir = current_dir.parent
+        
+        # 검색할 디렉토리 목록 (blog/create_naver 우선, naver_crawler는 하위 호환성)
+        search_dirs = [
+            project_dir / "blog" / "create_naver",
+            project_dir / "naver_crawler"
+        ]
+        
+        # 파일 찾기 (하위 디렉토리에서 검색)
+        json_file = None
+        for search_dir in search_dirs:
+            if not search_dir.exists():
+                continue
+            for root, dirs, files in os.walk(search_dir):
+                if filename in files:
+                    json_file = Path(root) / filename
+                    break
+            if json_file:
+                break
+        
+        if not json_file or not json_file.exists():
+            raise HTTPException(status_code=404, detail=f"JSON 파일을 찾을 수 없습니다: {filename}")
+        
+        # JSON 파일 읽기
+        import json
+        with open(json_file, 'r', encoding='utf-8') as f:
+            blog_data = json.load(f)
+        
+        return blog_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"JSON 파일 조회 중 오류 발생: {str(e)}")
+
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # 개발 모드: --reload 옵션으로 코드 변경 시 자동 재시작
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
 
