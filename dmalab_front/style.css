@@ -100,12 +100,14 @@ body {
 
 .form-group label {
     display: block;
+    margin-left: 2px;
     margin-bottom: 8px;
     font-weight: 500;
     color: #555;
 }
 
-.form-group label.required:after {
+.form-group label.required:after,
+.checkbox-label span.required:after {
     content: ' *';
     color: #dc3545;
     margin-left: 3px;
@@ -222,11 +224,11 @@ body {
 
 .checkbox-label input[type="checkbox"] {
     width: auto;
-    margin: 0;
-    margin-right: 10px;
+    margin-left: 2px;
+    margin-right: 2px;
     cursor: pointer;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     accent-color: #888;
 }
 
@@ -1712,6 +1714,7 @@ button:disabled {
     cursor: not-allowed;
     opacity: 0.6;
 }
+
 
 .category-selector {
     display: flex;

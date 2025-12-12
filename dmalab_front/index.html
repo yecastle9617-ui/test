@@ -103,15 +103,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="required">상위 블로그 참고</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <label class="checkbox-label" style="margin-bottom: 0;">
                                 <input type="checkbox" id="generate-use-auto-reference" checked>
-                                <span>키워드 기준으로 상위 블로그를 자동으로 수집·분석해서 참고하기</span>
+                                <span class="required">상위 블로그 참고(1~3)</span>
                             </label>
                         </div>
                         <div class="form-group" style="margin-top: 8px;">
-                            <label>자동 수집 블로그 개수 (1~3)</label>
+
                             <input type="number" id="generate-reference-count" value="3" min="1" max="10">
                         </div>
                         <small class="form-help">
@@ -156,15 +155,21 @@
                     </div>
 
                     <div class="form-group">
-                        <label>이미지 생성</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <label class="checkbox-label" style="margin-bottom: 0;">
                                 <input type="checkbox" id="generate-images" checked>
-                                <span>이미지 생성하기</span>
+                                <span>이미지 생성</span>
                             </label>
                         </div>
+                        <div class="form-group" id="image-style-group" style="margin-top: 8px;">
+                            <select id="image-style-select" name="image-style">
+                                <option value="">이미지 스타일 선택</option>
+                                <option value="photo">실사 (사진 스타일)</option>
+                                <option value="illustration">애니메이션/일러스트</option>
+                            </select>
+                        </div>
                         <small class="form-help">
-                            체크 해제 시 이미지 마커는 생성되지만 실제 이미지는 생성하지 않습니다. 이미지 생성에는 Gemini API가 사용됩니다.
+                            체크 해제 시 이미지 마커는 생성되지만 실제 이미지는 생성하지 않습니다.
                         </small>
                     </div>
                     

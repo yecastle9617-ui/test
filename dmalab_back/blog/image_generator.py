@@ -4,6 +4,7 @@ Gemini API를 사용하여 이미지를 생성하는 모듈
 
 import os
 import json
+import re
 from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -70,55 +71,85 @@ def load_image_prompt_guide() -> Dict[str, Any]:
 
 def build_image_prompt(
     image_description: str,
+    image_style: str = "photo",
     style_guide: Optional[Dict[str, Any]] = None
 ) -> str:
     """
     이미지 생성 프롬프트를 구성합니다.
     
     Args:
-        image_description: 이미지에 대한 설명 (GPT가 제공한 마커의 설명 부분)
-        style_guide: 스타일 가이드 (선택사항, 제공되지 않으면 기본 가이드 사용)
+        image_description: GPT가 생성한 완전한 이미지 프롬프트 (주제, 상세 묘사, 스타일, 제한 포함)
+        image_style: 이미지 스타일 ('photo' 또는 'illustration')
+        style_guide: 스타일 가이드 (선택사항, 현재는 사용하지 않음 - GPT 프롬프트를 우선시)
     
     Returns:
-        구성된 이미지 생성 프롬프트
+        구성된 이미지 생성 프롬프트 (GPT 프롬프트 + 선택한 스타일로 강제)
     """
-    prompt_parts = []
+    # GPT가 생성한 프롬프트를 그대로 사용 (이미 완전한 프롬프트 형식)
+    cleaned_prompt = image_description
     
-    # 주제
-    prompt_parts.append(f"주제:\n{image_description}")
-    
-    # 스타일 가이드가 있으면 사용, 없으면 기본 가이드 로드
-    if style_guide:
-        if "detail" in style_guide:
-            detail_list = style_guide["detail"] if isinstance(style_guide["detail"], list) else [style_guide["detail"]]
-            prompt_parts.append("\n상세 묘사:")
-            prompt_parts.extend(detail_list)
-        if "style" in style_guide:
-            style_list = style_guide["style"] if isinstance(style_guide["style"], list) else [style_guide["style"]]
-            prompt_parts.append("\n스타일:")
-            prompt_parts.extend(style_list)
-        if "restrictions" in style_guide:
-            restrictions_list = style_guide["restrictions"] if isinstance(style_guide["restrictions"], list) else [style_guide["restrictions"]]
-            prompt_parts.append("\n제한:")
-            prompt_parts.extend(restrictions_list)
+    # 선택한 스타일에 따라 처리
+    if image_style == "illustration":
+        # 애니메이션/일러스트 스타일인 경우
+        # 사진 관련 키워드 제거
+        photo_keywords_to_remove = [
+            "사진", "photorealistic", "professional photography", "DSLR",
+            "실사", "현실적", "realistic photo"
+        ]
+        
+        for keyword in photo_keywords_to_remove:
+            pattern = re.compile(re.escape(keyword), re.IGNORECASE)
+            cleaned_prompt = pattern.sub("", cleaned_prompt)
+        
+        # 스타일 섹션을 애니메이션/일러스트 스타일로 강제
+        if "스타일:" in cleaned_prompt or "style:" in cleaned_prompt.lower():
+            style_pattern = re.compile(
+                r'(스타일:|style:).*?(?=\n제한:|제한:|restrictions:|$)', 
+                re.IGNORECASE | re.DOTALL
+            )
+            replacement = r'\1\n- 화풍: 부드럽고 깔끔한 애니메이션/일러스트 스타일 (smooth animation, clean illustration style)\n- 스타일: 픽사나 디즈니 애니메이션처럼 부드럽고 친근한 느낌\n- 조명: 부드러운 조명, 따뜻한 분위기\n- 색감: 밝고 생동감 있는 색감\n- 분위기: 밝고 친근하며 포근한 느낌'
+            cleaned_prompt = style_pattern.sub(replacement, cleaned_prompt)
+        
+        # 마지막에 스타일 일관성 강조 문구 추가
+        final_prompt = cleaned_prompt
+        if not final_prompt.endswith(".") and not final_prompt.endswith("!"):
+            final_prompt += "\n"
+        
+        final_prompt += "\n[중요] 반드시 부드럽고 깔끔한 애니메이션/일러스트 스타일로 생성하세요. 픽사나 디즈니 애니메이션처럼 부드럽고 친근한 느낌의 이미지로 생성해야 합니다. 사진 스타일은 절대 사용하지 마세요."
+        
     else:
-        # 기본 스타일 가이드 로드
-        guide = load_image_prompt_guide()
-        default_guide = guide.get("default_style_guide", {})
+        # 사진 스타일인 경우 (기본값)
+        # 애니메이션/일러스트 관련 키워드 제거
+        style_keywords_to_remove = [
+            "애니메이션", "일러스트", "만화", "픽사", "디즈니", "카툰",
+            "animation", "illustration", "cartoon", "pixar", "disney",
+            "3D render", "3D 렌더링", "일러스트레이션"
+        ]
         
-        if "detail" in default_guide:
-            prompt_parts.append("\n상세 묘사:")
-            prompt_parts.extend(default_guide["detail"])
+        for keyword in style_keywords_to_remove:
+            pattern = re.compile(re.escape(keyword), re.IGNORECASE)
+            cleaned_prompt = pattern.sub("", cleaned_prompt)
         
-        if "style" in default_guide:
-            prompt_parts.append("\n스타일:")
-            prompt_parts.extend(default_guide["style"])
+        # 연속된 공백 정리
+        cleaned_prompt = re.sub(r'\s+', ' ', cleaned_prompt).strip()
         
-        if "restrictions" in default_guide:
-            prompt_parts.append("\n제한:")
-            prompt_parts.extend(default_guide["restrictions"])
+        # 스타일 섹션을 사진 스타일로 강제
+        if "스타일:" in cleaned_prompt or "style:" in cleaned_prompt.lower():
+            style_pattern = re.compile(
+                r'(스타일:|style:).*?(?=\n제한:|제한:|restrictions:|$)', 
+                re.IGNORECASE | re.DOTALL
+            )
+            replacement = r'\1\n- 화풍: 고품질 사진 스타일 (photorealistic, professional photography)\n- 사진 스타일: DSLR 카메라로 촬영한 것처럼 현실적이고 선명한 이미지\n- 조명: 자연스러운 조명 또는 전문적인 스튜디오 조명\n- 색감: 자연스럽고 현실적인 색감\n- 분위기: 밝고 전문적인 느낌'
+            cleaned_prompt = style_pattern.sub(replacement, cleaned_prompt)
+        
+        # 마지막에 스타일 일관성 강조 문구 추가
+        final_prompt = cleaned_prompt
+        if not final_prompt.endswith(".") and not final_prompt.endswith("!"):
+            final_prompt += "\n"
+        
+        final_prompt += "\n[중요] 반드시 실제 사진처럼 보이는 현실적인 이미지로 생성하세요. 일러스트, 애니메이션, 만화, 3D 렌더링 스타일은 절대 사용하지 마세요. 모든 이미지는 고품질 사진 스타일(photorealistic, professional photography)로만 생성해야 합니다."
     
-    return "\n".join(prompt_parts)
+    return final_prompt
 
 
 def generate_image(

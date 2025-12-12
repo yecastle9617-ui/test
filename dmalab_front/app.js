@@ -3,6 +3,42 @@
 // 프로덕션: 빈 문자열 (상대 경로 사용, Nginx가 /api 경로를 프록시)
 const API_BASE_URL = '';
 
+// ===== 브라우저 고유 식별자 관리 =====
+// localStorage에서 브라우저 고유 ID를 가져오거나 생성
+function getOrCreateClientId() {
+    const STORAGE_KEY = 'dmalab_client_id';
+    let clientId = localStorage.getItem(STORAGE_KEY);
+    
+    if (!clientId) {
+        // UUID v4 형식으로 생성 (간단한 버전)
+        clientId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+        localStorage.setItem(STORAGE_KEY, clientId);
+    }
+    
+    return clientId;
+}
+
+// 전역 변수로 클라이언트 ID 저장 (페이지 로드 시 한 번만 생성)
+const CLIENT_ID = getOrCreateClientId();
+
+// fetch 래퍼 함수: 모든 API 요청에 X-Client-ID 헤더 자동 추가
+async function apiFetch(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-Client-ID': CLIENT_ID,
+        ...(options.headers || {})
+    };
+    
+    return fetch(url, {
+        ...options,
+        headers: headers
+    });
+}
+
 // iframe 높이 자동 조정 (부모 페이지에 높이 전달)
 function sendHeightToParent() {
     if (window.parent !== window) {
@@ -330,6 +366,29 @@ function initIdeasUI() {
     autoTopicCheckbox.addEventListener('change', updateTopicInputState);
 }
 
+// 이미지 스타일 선택 UI 초기화
+function initImageStyleUI() {
+    const generateImagesCheckbox = document.getElementById('generate-images');
+    const imageStyleGroup = document.getElementById('image-style-group');
+    const imageStyleSelect = document.getElementById('image-style-select');
+    
+    if (!generateImagesCheckbox || !imageStyleGroup || !imageStyleSelect) return;
+    
+    // 체크박스 변경 시 이미지 스타일 선택 옵션 활성/비활성 처리
+    function updateImageStyleState() {
+        const isEnabled = generateImagesCheckbox.checked;
+        if (imageStyleSelect) {
+            imageStyleSelect.disabled = !isEnabled;
+        }
+    }
+    
+    // 초기 상태 설정
+    updateImageStyleState();
+    
+    // 체크박스 변경 이벤트 리스너
+    generateImagesCheckbox.addEventListener('change', updateImageStyleState);
+}
+
 // 페이지 로드 시 카테고리 선택기 초기화 및 탭 복원
 // 스크립트가 body 끝에 있으므로 DOM이 이미 로드되어 있을 수 있음
 (function() {
@@ -360,6 +419,7 @@ function initIdeasUI() {
         initExternalLinksUI();
         initReferenceBlogsUI();
         initIdeasUI();
+        initImageStyleUI();
         // 에디터 초기화
         initializeQuillEditors();
         
@@ -393,7 +453,7 @@ function initIdeasUI() {
 // 사용량 정보 조회 및 업데이트
 async function updateUsageInfo() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/usage`);
+        const response = await apiFetch(`${API_BASE_URL}/api/usage`);
         if (!response.ok) {
             throw new Error('사용량 조회 실패');
         }
@@ -1150,7 +1210,7 @@ async function handleProcess() {
         }, 100);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/process`, {
+        const response = await apiFetch(`${API_BASE_URL}/api/process`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1347,6 +1407,9 @@ async function handleGenerateBlog() {
 
     // 이미지 생성 여부 확인
     const generateImages = document.getElementById('generate-images').checked;
+    // 이미지 스타일 확인 (드롭다운에서 선택)
+    const imageStyleSelect = document.getElementById('image-style-select');
+    const imageStyle = imageStyleSelect && imageStyleSelect.value ? imageStyleSelect.value : 'photo'; // 기본값: photo (선택 안 하면 photo)
 
     // 결과 영역 표시 및 로딩 메시지 표시
     const resultDiv = document.getElementById('result');
@@ -1522,7 +1585,7 @@ async function handleGenerateBlog() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 300000); // 5분 타임아웃
         
-        const response = await fetch(`${API_BASE_URL}/api/generate-blog`, {
+        const response = await apiFetch(`${API_BASE_URL}/api/generate-blog`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1537,6 +1600,7 @@ async function handleGenerateBlog() {
                 manual_reference_urls: manualReferenceUrls,
                 external_links: externalLinks,
                 generate_images: generateImages,
+                image_style: generateImages ? imageStyle : 'photo', // 이미지 생성 시에만 스타일 전달
                 save_json: true
             }),
             signal: controller.signal
@@ -1746,7 +1810,7 @@ async function handleGenerateIdeas() {
 
     try {
 
-        const res = await fetch(`${API_BASE_URL}/api/generate-blog-ideas`, {
+        const res = await apiFetch(`${API_BASE_URL}/api/generate-blog-ideas`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1961,7 +2025,7 @@ async function handleExportBlog() {
         showLoading('네이버 발행용 파일 생성 중...');
         updateLoadingStep('에디터 내용을 JSON으로 변환 중', 'processing');
 
-        const res = await fetch(`${API_BASE_URL}/api/export-blog`, {
+        const res = await apiFetch(`${API_BASE_URL}/api/export-blog`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2052,7 +2116,7 @@ async function handleDownloadImages() {
             downloadBtn.textContent = '다운로드 준비 중...';
         }
         
-        const response = await fetch(`${API_BASE_URL}/api/download-images`, {
+        const response = await apiFetch(`${API_BASE_URL}/api/download-images`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2607,7 +2671,7 @@ async function saveEditorContent() {
         
         // 서버에 저장 (에러가 발생해도 조용히 처리 - 사용자 경험 방해하지 않음)
         try {
-            await fetch(`${API_BASE_URL}/api/save-draft`, {
+            await apiFetch(`${API_BASE_URL}/api/save-draft`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2626,7 +2690,7 @@ async function saveEditorContent() {
 // 서버에서 에디터 내용 복원 (IP 기반)
 async function restoreEditorContent() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/get-draft`);
+        const response = await apiFetch(`${API_BASE_URL}/api/get-draft`);
         if (!response.ok) {
             throw new Error('임시 저장 불러오기 실패');
         }
@@ -2672,7 +2736,7 @@ async function clearEditorContent() {
     try {
         // 서버에서 임시 저장 삭제
         try {
-            await fetch(`${API_BASE_URL}/api/delete-draft`, {
+            await apiFetch(`${API_BASE_URL}/api/delete-draft`, {
                 method: 'DELETE'
             });
         } catch (e) {
@@ -2700,7 +2764,7 @@ async function clearEditorContent() {
 // 임시 저장된 에디터 내용이 있는지 확인 (서버에서 확인)
 async function hasSavedEditorContent() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/get-draft`);
+        const response = await apiFetch(`${API_BASE_URL}/api/get-draft`);
         if (!response.ok) {
             return false;
         }

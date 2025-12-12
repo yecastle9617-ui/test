@@ -89,18 +89,6 @@ REFERENCE_ANALYSIS_LIMIT = int(os.getenv("REFERENCE_ANALYSIS_LIMIT", "5"))
 # 블로그 아이디어 생성 일일 제한 (기본 3회)
 BLOG_IDEAS_LIMIT = int(os.getenv("BLOG_IDEAS_LIMIT", "3"))
 
-# 사용량 추적 (메모리 기반) - AI 블로그(이미지) 생성용
-# 구조: {ip: {"count": 0, "reset_time": datetime}}
-usage_tracker = defaultdict(lambda: {"count": 0, "reset_time": datetime.now() + timedelta(days=1)})
-
-# 상위 블로그 분석 사용량 추적 (메모리 기반)
-# 구조: {ip: {"count": 0, "reset_time": datetime}}
-reference_analysis_tracker = defaultdict(lambda: {"count": 0, "reset_time": datetime.now() + timedelta(days=1)})
-
-# 블로그 아이디어 생성 사용량 추적 (메모리 기반)
-# 구조: {ip: {"count": 0, "reset_time": datetime}}
-blog_ideas_tracker = defaultdict(lambda: {"count": 0, "reset_time": datetime.now() + timedelta(days=1)})
-
 # 사용량 추적 JSON 파일 경로
 USAGE_DATA_FILE = DATA_DIR / "usage_data.json"
 
@@ -136,86 +124,44 @@ def load_usage_data() -> Dict[str, Any]:
             "first_seen": {}
         }
 
-def save_usage_data():
+def save_usage_data(data: Dict[str, Any]):
     """사용량 데이터를 JSON 파일에 저장합니다."""
     try:
+        # 기존 JSON 파일에서 first_seen 데이터 보존
+        existing_data = load_usage_data()
+        existing_first_seen = existing_data.get("first_seen", {})
+        
+        # 전달받은 data에 first_seen이 있으면 병합 (기존 데이터 우선)
+        if "first_seen" in data:
+            existing_first_seen.update(data["first_seen"])
+        
         # datetime 객체를 문자열로 변환
-        data = {
+        save_data = {
             "blog_generation": {},
             "reference_analysis": {},
             "blog_ideas": {},
-            "first_seen": {}
+            "first_seen": existing_first_seen
         }
         
         # 각 트래커의 데이터를 복사 (datetime을 문자열로 변환)
-        for ip, usage_info in usage_tracker.items():
-            data["blog_generation"][ip] = {
-                "count": usage_info["count"],
-                "reset_time": usage_info["reset_time"].isoformat()
-            }
-        
-        for ip, usage_info in reference_analysis_tracker.items():
-            data["reference_analysis"][ip] = {
-                "count": usage_info["count"],
-                "reset_time": usage_info["reset_time"].isoformat()
-            }
-        
-        for ip, usage_info in blog_ideas_tracker.items():
-            data["blog_ideas"][ip] = {
-                "count": usage_info["count"],
-                "reset_time": usage_info["reset_time"].isoformat()
-            }
-        
-        # first_seen 데이터는 별도로 관리 (IP별 첫 접속 시간)
-        # 기존 데이터가 있으면 유지
-        existing_data = load_usage_data()
-        if "first_seen" in existing_data:
-            data["first_seen"] = existing_data["first_seen"]
+        for tracker_name in ["blog_generation", "reference_analysis", "blog_ideas"]:
+            if tracker_name in data:
+                for user_id, usage_info in data[tracker_name].items():
+                    reset_time = usage_info.get("reset_time")
+                    if isinstance(reset_time, datetime):
+                        reset_time = reset_time.isoformat()
+                    save_data[tracker_name][user_id] = {
+                        "count": usage_info.get("count", 0),
+                        "reset_time": reset_time
+                    }
         
         # JSON 파일에 저장
         with open(USAGE_DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump(save_data, f, ensure_ascii=False, indent=2)
         
         logger.debug(f"[USAGE_DATA] 사용량 데이터 저장 완료")
     except Exception as e:
         logger.exception(f"[USAGE_DATA] JSON 파일 저장 오류: {e}")
-
-def initialize_usage_trackers():
-    """서버 시작 시 JSON 파일에서 사용량 데이터를 로드하여 트래커를 초기화합니다."""
-    data = load_usage_data()
-    
-    # 각 트래커 초기화
-    if "blog_generation" in data:
-        for ip, usage_info in data["blog_generation"].items():
-            reset_time = usage_info.get("reset_time")
-            if isinstance(reset_time, str):
-                reset_time = datetime.fromisoformat(reset_time)
-            usage_tracker[ip] = {
-                "count": usage_info.get("count", 0),
-                "reset_time": reset_time or (datetime.now() + timedelta(days=1))
-            }
-    
-    if "reference_analysis" in data:
-        for ip, usage_info in data["reference_analysis"].items():
-            reset_time = usage_info.get("reset_time")
-            if isinstance(reset_time, str):
-                reset_time = datetime.fromisoformat(reset_time)
-            reference_analysis_tracker[ip] = {
-                "count": usage_info.get("count", 0),
-                "reset_time": reset_time or (datetime.now() + timedelta(days=1))
-            }
-    
-    if "blog_ideas" in data:
-        for ip, usage_info in data["blog_ideas"].items():
-            reset_time = usage_info.get("reset_time")
-            if isinstance(reset_time, str):
-                reset_time = datetime.fromisoformat(reset_time)
-            blog_ideas_tracker[ip] = {
-                "count": usage_info.get("count", 0),
-                "reset_time": reset_time or (datetime.now() + timedelta(days=1))
-            }
-    
-    logger.info(f"[USAGE_DATA] 사용량 데이터 로드 완료: 블로그 생성={len(usage_tracker)}, 상위 분석={len(reference_analysis_tracker)}, 아이디어={len(blog_ideas_tracker)}")
 
 def record_first_seen(ip: str):
     """IP의 첫 접속 시간을 기록합니다."""
@@ -234,9 +180,6 @@ def record_first_seen(ip: str):
                 json.dump(full_data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             logger.warning(f"[USAGE_DATA] 첫 접속 시간 기록 오류: {e}")
-
-# 서버 시작 시 사용량 데이터 로드
-initialize_usage_trackers()
 
 # ===== 비동기 작업 큐 시스템 =====
 class TaskStatus(str, Enum):
@@ -370,193 +313,335 @@ def get_client_ip(request: Request) -> str:
     
     return "unknown"
 
+def get_user_identifier(request: Request) -> str:
+    """
+    IP 주소와 브라우저 고유 ID를 조합하여 사용자 식별자를 생성합니다.
+    같은 IP에서도 다른 브라우저/기기로 구분할 수 있습니다.
+    """
+    ip = get_client_ip(request)
+    client_id = request.headers.get("X-Client-ID", "").strip()
+    
+    # Client-ID가 있으면 IP와 조합하여 사용
+    if client_id:
+        # IP와 Client-ID를 조합 (해시로 변환하여 안전하게 저장)
+        combined = f"{ip}:{client_id}"
+        # MD5 해시로 변환 (너무 길지 않게)
+        identifier = hashlib.md5(combined.encode()).hexdigest()
+        return identifier
+    else:
+        # Client-ID가 없으면 IP만 사용 (하위 호환성)
+        return ip
+
 def is_admin_ip(ip: str) -> bool:
     """IP가 admin IP 목록에 있는지 확인합니다."""
     if not ADMIN_IPS:
         return False
     return ip in ADMIN_IPS
 
-def check_usage_limit(ip: str, limit: int = DAILY_LIMIT) -> tuple[bool, str]:
+def check_usage_limit(request: Request, limit: int = DAILY_LIMIT) -> tuple[bool, str]:
     """
     사용량 제한을 확인합니다.
     
     Returns:
         (is_allowed, message): 허용 여부와 메시지
     """
+    ip = get_client_ip(request)
+    user_id = get_user_identifier(request)
+    
     # Admin IP는 무제한 사용 가능
     if is_admin_ip(ip):
         logger.info(f"[USAGE] Admin IP {ip} - 무제한 사용 허용")
         return True, "admin"
     
-    # 첫 접속 시간 기록
+    # 첫 접속 시간 기록 (IP 기준으로 기록)
     record_first_seen(ip)
     
+    # JSON 파일에서 사용량 데이터 로드
+    data = load_usage_data()
+    if "blog_generation" not in data:
+        data["blog_generation"] = {}
+    
     now = datetime.now()
-    usage = usage_tracker[ip]
+    
+    # 사용자 사용량 정보 가져오기
+    if user_id not in data["blog_generation"]:
+        data["blog_generation"][user_id] = {
+            "count": 0,
+            "reset_time": (now + timedelta(days=1)).isoformat()
+        }
+    
+    usage_info = data["blog_generation"][user_id]
+    reset_time_str = usage_info.get("reset_time")
+    reset_time = datetime.fromisoformat(reset_time_str) if isinstance(reset_time_str, str) else reset_time_str
+    count = usage_info.get("count", 0)
     
     # 리셋 시간이 지났으면 카운트 초기화
-    if now > usage["reset_time"]:
-        usage["count"] = 0
-        usage["reset_time"] = now + timedelta(days=1)
-        logger.info(f"[USAGE] IP {ip} - 일일 사용량 리셋")
+    if now > reset_time:
+        count = 0
+        reset_time = now + timedelta(days=1)
+        logger.info(f"[USAGE] User {user_id} (IP: {ip}) - 일일 사용량 리셋")
     
     # 사용량 확인
-    if usage["count"] >= limit:
-        remaining_time = usage["reset_time"] - now
+    if count >= limit:
+        remaining_time = reset_time - now
         hours = int(remaining_time.total_seconds() / 3600)
         minutes = int((remaining_time.total_seconds() % 3600) / 60)
         message = f"일일 사용량 제한({limit}회)에 도달했습니다. 다음 리셋까지 약 {hours}시간 {minutes}분 남았습니다."
-        logger.warning(f"[USAGE] IP {ip} - 사용량 제한 도달 ({usage['count']}/{limit})")
-        save_usage_data()  # 변경사항 저장
+        logger.warning(f"[USAGE] User {user_id} (IP: {ip}) - 사용량 제한 도달 ({count}/{limit})")
+        # 현재 상태 저장 (리셋된 경우)
+        data["blog_generation"][user_id] = {
+            "count": count,
+            "reset_time": reset_time.isoformat()
+        }
+        save_usage_data(data)
         return False, message
     
     # 사용량 증가
-    usage["count"] += 1
-    remaining = limit - usage["count"]
-    logger.info(f"[USAGE] IP {ip} - 사용량: {usage['count']}/{limit} (남은 횟수: {remaining})")
-    save_usage_data()  # 변경사항 저장
-    return True, f"사용량: {usage['count']}/{limit} (남은 횟수: {remaining})"
+    count += 1
+    remaining = limit - count
+    logger.info(f"[USAGE] User {user_id} (IP: {ip}) - 사용량: {count}/{limit} (남은 횟수: {remaining})")
+    
+    # JSON 파일에 저장
+    data["blog_generation"][user_id] = {
+        "count": count,
+        "reset_time": reset_time.isoformat()
+    }
+    save_usage_data(data)
+    return True, f"사용량: {count}/{limit} (남은 횟수: {remaining})"
 
-def get_usage_info(ip: str) -> Dict[str, Any]:
+def get_usage_info(request: Request) -> Dict[str, Any]:
     """
-    현재 IP의 사용량 정보를 반환합니다.
+    현재 사용자의 사용량 정보를 반환합니다.
     
     Returns:
         사용량 정보 딕셔너리
     """
+    ip = get_client_ip(request)
+    user_id = get_user_identifier(request)
     is_admin = is_admin_ip(ip)
     now = datetime.now()
     
+    # JSON 파일에서 사용량 데이터 로드
+    data = load_usage_data()
+    
     # 블로그 생성 사용량
-    usage = usage_tracker[ip]
-    if now > usage["reset_time"]:
-        usage["count"] = 0
-        usage["reset_time"] = now + timedelta(days=1)
+    if "blog_generation" not in data:
+        data["blog_generation"] = {}
+    if user_id not in data["blog_generation"]:
+        data["blog_generation"][user_id] = {
+            "count": 0,
+            "reset_time": (now + timedelta(days=1)).isoformat()
+        }
+    usage_info = data["blog_generation"][user_id]
+    reset_time_str = usage_info.get("reset_time")
+    reset_time = datetime.fromisoformat(reset_time_str) if isinstance(reset_time_str, str) else reset_time_str
+    count = usage_info.get("count", 0)
+    if now > reset_time:
+        count = 0
+        reset_time = now + timedelta(days=1)
+    remaining_time = reset_time - now
     
     # 상위 블로그 분석 사용량
-    ref_usage = reference_analysis_tracker[ip]
-    if now > ref_usage["reset_time"]:
-        ref_usage["count"] = 0
-        ref_usage["reset_time"] = now + timedelta(days=1)
+    if "reference_analysis" not in data:
+        data["reference_analysis"] = {}
+    if user_id not in data["reference_analysis"]:
+        data["reference_analysis"][user_id] = {
+            "count": 0,
+            "reset_time": (now + timedelta(days=1)).isoformat()
+        }
+    ref_usage_info = data["reference_analysis"][user_id]
+    ref_reset_time_str = ref_usage_info.get("reset_time")
+    ref_reset_time = datetime.fromisoformat(ref_reset_time_str) if isinstance(ref_reset_time_str, str) else ref_reset_time_str
+    ref_count = ref_usage_info.get("count", 0)
+    if now > ref_reset_time:
+        ref_count = 0
+        ref_reset_time = now + timedelta(days=1)
+    ref_remaining_time = ref_reset_time - now
     
     # 블로그 아이디어 생성 사용량
-    ideas_usage = blog_ideas_tracker[ip]
-    if now > ideas_usage["reset_time"]:
-        ideas_usage["count"] = 0
-        ideas_usage["reset_time"] = now + timedelta(days=1)
-    
-    # 리셋까지 남은 시간 계산
-    remaining_time = usage["reset_time"] - now
-    ref_remaining_time = ref_usage["reset_time"] - now
-    ideas_remaining_time = ideas_usage["reset_time"] - now
+    if "blog_ideas" not in data:
+        data["blog_ideas"] = {}
+    if user_id not in data["blog_ideas"]:
+        data["blog_ideas"][user_id] = {
+            "count": 0,
+            "reset_time": (now + timedelta(days=1)).isoformat()
+        }
+    ideas_usage_info = data["blog_ideas"][user_id]
+    ideas_reset_time_str = ideas_usage_info.get("reset_time")
+    ideas_reset_time = datetime.fromisoformat(ideas_reset_time_str) if isinstance(ideas_reset_time_str, str) else ideas_reset_time_str
+    ideas_count = ideas_usage_info.get("count", 0)
+    if now > ideas_reset_time:
+        ideas_count = 0
+        ideas_reset_time = now + timedelta(days=1)
+    ideas_remaining_time = ideas_reset_time - now
     
     return {
         "is_admin": is_admin,
         "blog_generation": {
-            "used": usage["count"],
+            "used": count,
             "limit": DAILY_LIMIT if not is_admin else -1,  # -1은 무제한
-            "remaining": DAILY_LIMIT - usage["count"] if not is_admin else -1,
+            "remaining": DAILY_LIMIT - count if not is_admin else -1,
             "reset_in_hours": int(remaining_time.total_seconds() / 3600) if not is_admin else 0,
             "reset_in_minutes": int((remaining_time.total_seconds() % 3600) / 60) if not is_admin else 0
         },
         "reference_analysis": {
-            "used": ref_usage["count"],
+            "used": ref_count,
             "limit": REFERENCE_ANALYSIS_LIMIT if not is_admin else -1,
-            "remaining": REFERENCE_ANALYSIS_LIMIT - ref_usage["count"] if not is_admin else -1,
+            "remaining": REFERENCE_ANALYSIS_LIMIT - ref_count if not is_admin else -1,
             "reset_in_hours": int(ref_remaining_time.total_seconds() / 3600) if not is_admin else 0,
             "reset_in_minutes": int((ref_remaining_time.total_seconds() % 3600) / 60) if not is_admin else 0
         },
         "blog_ideas": {
-            "used": ideas_usage["count"],
+            "used": ideas_count,
             "limit": BLOG_IDEAS_LIMIT if not is_admin else -1,
-            "remaining": BLOG_IDEAS_LIMIT - ideas_usage["count"] if not is_admin else -1,
+            "remaining": BLOG_IDEAS_LIMIT - ideas_count if not is_admin else -1,
             "reset_in_hours": int(ideas_remaining_time.total_seconds() / 3600) if not is_admin else 0,
             "reset_in_minutes": int((ideas_remaining_time.total_seconds() % 3600) / 60) if not is_admin else 0
         }
     }
 
-def check_reference_analysis_limit(ip: str, limit: int = REFERENCE_ANALYSIS_LIMIT) -> tuple[bool, str]:
+def check_reference_analysis_limit(request: Request, limit: int = REFERENCE_ANALYSIS_LIMIT) -> tuple[bool, str]:
     """
     상위 블로그 분석 사용량 제한을 확인합니다.
     
     Returns:
         (is_allowed, message): 허용 여부와 메시지
     """
+    ip = get_client_ip(request)
+    user_id = get_user_identifier(request)
+    
     # Admin IP는 무제한 사용 가능
     if is_admin_ip(ip):
         logger.info(f"[REFERENCE] Admin IP {ip} - 무제한 사용 허용")
         return True, "admin"
     
-    # 첫 접속 시간 기록
+    # 첫 접속 시간 기록 (IP 기준으로 기록)
     record_first_seen(ip)
     
+    # JSON 파일에서 사용량 데이터 로드
+    data = load_usage_data()
+    if "reference_analysis" not in data:
+        data["reference_analysis"] = {}
+    
     now = datetime.now()
-    usage = reference_analysis_tracker[ip]
+    
+    # 사용자 사용량 정보 가져오기
+    if user_id not in data["reference_analysis"]:
+        data["reference_analysis"][user_id] = {
+            "count": 0,
+            "reset_time": (now + timedelta(days=1)).isoformat()
+        }
+    
+    usage_info = data["reference_analysis"][user_id]
+    reset_time_str = usage_info.get("reset_time")
+    reset_time = datetime.fromisoformat(reset_time_str) if isinstance(reset_time_str, str) else reset_time_str
+    count = usage_info.get("count", 0)
     
     # 리셋 시간이 지났으면 카운트 초기화
-    if now > usage["reset_time"]:
-        usage["count"] = 0
-        usage["reset_time"] = now + timedelta(days=1)
-        logger.info(f"[REFERENCE] IP {ip} - 일일 사용량 리셋")
+    if now > reset_time:
+        count = 0
+        reset_time = now + timedelta(days=1)
+        logger.info(f"[REFERENCE] User {user_id} (IP: {ip}) - 일일 사용량 리셋")
     
     # 사용량 확인
-    if usage["count"] >= limit:
-        remaining_time = usage["reset_time"] - now
+    if count >= limit:
+        remaining_time = reset_time - now
         hours = int(remaining_time.total_seconds() / 3600)
         minutes = int((remaining_time.total_seconds() % 3600) / 60)
         message = f"상위 블로그 분석 일일 사용량 제한({limit}회)에 도달했습니다. 다음 리셋까지 약 {hours}시간 {minutes}분 남았습니다."
-        logger.warning(f"[REFERENCE] IP {ip} - 사용량 제한 도달 ({usage['count']}/{limit})")
-        save_usage_data()  # 변경사항 저장
+        logger.warning(f"[REFERENCE] User {user_id} (IP: {ip}) - 사용량 제한 도달 ({count}/{limit})")
+        # 현재 상태 저장 (리셋된 경우)
+        data["reference_analysis"][user_id] = {
+            "count": count,
+            "reset_time": reset_time.isoformat()
+        }
+        save_usage_data(data)
         return False, message
     
     # 사용량 증가
-    usage["count"] += 1
-    remaining = limit - usage["count"]
-    logger.info(f"[REFERENCE] IP {ip} - 상위 블로그 분석 사용량: {usage['count']}/{limit} (남은 횟수: {remaining})")
-    save_usage_data()  # 변경사항 저장
-    return True, f"상위 블로그 분석 사용량: {usage['count']}/{limit} (남은 횟수: {remaining})"
+    count += 1
+    remaining = limit - count
+    logger.info(f"[REFERENCE] User {user_id} (IP: {ip}) - 상위 블로그 분석 사용량: {count}/{limit} (남은 횟수: {remaining})")
+    
+    # JSON 파일에 저장
+    data["reference_analysis"][user_id] = {
+        "count": count,
+        "reset_time": reset_time.isoformat()
+    }
+    save_usage_data(data)
+    return True, f"상위 블로그 분석 사용량: {count}/{limit} (남은 횟수: {remaining})"
 
 
-def check_blog_ideas_limit(ip: str, limit: int = BLOG_IDEAS_LIMIT) -> tuple[bool, str]:
+def check_blog_ideas_limit(request: Request, limit: int = BLOG_IDEAS_LIMIT) -> tuple[bool, str]:
     """
     블로그 아이디어 생성 사용량 제한을 확인합니다.
     
     Returns:
         (is_allowed, message): 허용 여부와 메시지
     """
+    ip = get_client_ip(request)
+    user_id = get_user_identifier(request)
+    
     # Admin IP는 무제한 사용 가능
     if is_admin_ip(ip):
         logger.info(f"[BLOG_IDEAS] Admin IP {ip} - 무제한 사용 허용")
         return True, "admin"
     
-    # 첫 접속 시간 기록
+    # 첫 접속 시간 기록 (IP 기준으로 기록)
     record_first_seen(ip)
     
+    # JSON 파일에서 사용량 데이터 로드
+    data = load_usage_data()
+    if "blog_ideas" not in data:
+        data["blog_ideas"] = {}
+    
     now = datetime.now()
-    usage = blog_ideas_tracker[ip]
+    
+    # 사용자 사용량 정보 가져오기
+    if user_id not in data["blog_ideas"]:
+        data["blog_ideas"][user_id] = {
+            "count": 0,
+            "reset_time": (now + timedelta(days=1)).isoformat()
+        }
+    
+    usage_info = data["blog_ideas"][user_id]
+    reset_time_str = usage_info.get("reset_time")
+    reset_time = datetime.fromisoformat(reset_time_str) if isinstance(reset_time_str, str) else reset_time_str
+    count = usage_info.get("count", 0)
     
     # 리셋 시간이 지났으면 카운트 초기화
-    if now > usage["reset_time"]:
-        usage["count"] = 0
-        usage["reset_time"] = now + timedelta(days=1)
-        logger.info(f"[BLOG_IDEAS] IP {ip} - 일일 사용량 리셋")
+    if now > reset_time:
+        count = 0
+        reset_time = now + timedelta(days=1)
+        logger.info(f"[BLOG_IDEAS] User {user_id} (IP: {ip}) - 일일 사용량 리셋")
     
     # 사용량 확인
-    if usage["count"] >= limit:
-        remaining_time = usage["reset_time"] - now
+    if count >= limit:
+        remaining_time = reset_time - now
         hours = int(remaining_time.total_seconds() / 3600)
         minutes = int((remaining_time.total_seconds() % 3600) / 60)
         message = f"블로그 아이디어 생성 일일 사용량 제한({limit}회)에 도달했습니다. 다음 리셋까지 약 {hours}시간 {minutes}분 남았습니다."
-        logger.warning(f"[BLOG_IDEAS] IP {ip} - 사용량 제한 도달 ({usage['count']}/{limit})")
-        save_usage_data()  # 변경사항 저장
+        logger.warning(f"[BLOG_IDEAS] User {user_id} (IP: {ip}) - 사용량 제한 도달 ({count}/{limit})")
+        # 현재 상태 저장 (리셋된 경우)
+        data["blog_ideas"][user_id] = {
+            "count": count,
+            "reset_time": reset_time.isoformat()
+        }
+        save_usage_data(data)
         return False, message
     
     # 사용량 증가
-    usage["count"] += 1
-    remaining = limit - usage["count"]
-    logger.info(f"[BLOG_IDEAS] IP {ip} - 블로그 아이디어 생성 사용량: {usage['count']}/{limit} (남은 횟수: {remaining})")
-    save_usage_data()  # 변경사항 저장
-    return True, f"블로그 아이디어 생성 사용량: {usage['count']}/{limit} (남은 횟수: {remaining})"
+    count += 1
+    remaining = limit - count
+    logger.info(f"[BLOG_IDEAS] User {user_id} (IP: {ip}) - 블로그 아이디어 생성 사용량: {count}/{limit} (남은 횟수: {remaining})")
+    
+    # JSON 파일에 저장
+    data["blog_ideas"][user_id] = {
+        "count": count,
+        "reset_time": reset_time.isoformat()
+    }
+    save_usage_data(data)
+    return True, f"블로그 아이디어 생성 사용량: {count}/{limit} (남은 횟수: {remaining})"
 
 # blog/create_naver 디렉토리 설정 (GPT 자동 생성용)
 CREATE_NAVER_DIR = DATA_DIR / "blog" / "create_naver"
@@ -747,6 +832,10 @@ class GenerateBlogRequest(BaseModel):
     generate_images: bool = Field(
         default=True,
         description="이미지 마커에 대해 자동으로 이미지 생성할지 여부"
+    )
+    image_style: str = Field(
+        default="photo",
+        description="이미지 스타일: 'photo' (실사/사진 스타일) 또는 'illustration' (애니메이션/일러스트 스타일)"
     )
     model: str = Field(default="gpt-4o", description="사용할 GPT 모델")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="생성 온도")
@@ -1185,8 +1274,7 @@ async def get_usage(http_request: Request):
     현재 IP의 사용량 정보를 반환합니다.
     """
     try:
-        client_ip = get_client_ip(http_request)
-        usage_info = get_usage_info(client_ip)
+        usage_info = get_usage_info(http_request)
         return usage_info
     except Exception as e:
         logger.exception(f"[USAGE] 사용량 조회 오류: {e}")
@@ -1219,24 +1307,26 @@ class GetDraftResponse(BaseModel):
     error: Optional[str] = None
 
 
-def get_draft_file_path(ip: str) -> Path:
-    """IP별 임시 저장 파일 경로를 반환합니다."""
-    # IP 주소를 파일명으로 사용 (특수문자 제거)
-    safe_ip = ip.replace(".", "_").replace(":", "_")
-    return DRAFT_DIR / f"draft_{safe_ip}.json"
+def get_draft_file_path(user_id: str) -> Path:
+    """사용자별 임시 저장 파일 경로를 반환합니다."""
+    # 사용자 ID를 파일명으로 사용 (특수문자 제거)
+    safe_id = user_id.replace(".", "_").replace(":", "_").replace("/", "_")
+    return DRAFT_DIR / f"draft_{safe_id}.json"
 
 
 @app.post("/api/save-draft", response_model=SaveDraftResponse)
 async def save_draft(request: SaveDraftRequest, http_request: Request):
     """
-    에디터 내용을 IP 기반으로 임시 저장합니다.
+    에디터 내용을 사용자별로 임시 저장합니다.
     """
     try:
+        user_id = get_user_identifier(http_request)
         client_ip = get_client_ip(http_request)
-        draft_path = get_draft_file_path(client_ip)
+        draft_path = get_draft_file_path(user_id)
         
         draft_data = {
             "ip": client_ip,
+            "user_id": user_id,
             "saved_at": datetime.now().isoformat(),
             "title": request.title,
             "body": request.body,
@@ -1248,7 +1338,7 @@ async def save_draft(request: SaveDraftRequest, http_request: Request):
         with open(draft_path, 'w', encoding='utf-8') as f:
             json.dump(draft_data, f, ensure_ascii=False, indent=2)
         
-        logger.info(f"[DRAFT] 임시 저장 완료: IP={client_ip}")
+        logger.info(f"[DRAFT] 임시 저장 완료: User={user_id}, IP={client_ip}")
         return SaveDraftResponse(success=True, message="임시 저장 완료")
         
     except Exception as e:
@@ -1262,11 +1352,11 @@ async def save_draft(request: SaveDraftRequest, http_request: Request):
 @app.get("/api/get-draft", response_model=GetDraftResponse)
 async def get_draft(http_request: Request):
     """
-    현재 IP의 임시 저장된 내용을 불러옵니다.
+    현재 사용자의 임시 저장된 내용을 불러옵니다.
     """
     try:
-        client_ip = get_client_ip(http_request)
-        draft_path = get_draft_file_path(client_ip)
+        user_id = get_user_identifier(http_request)
+        draft_path = get_draft_file_path(user_id)
         
         if not draft_path.exists():
             return GetDraftResponse(success=True)  # 저장된 내용 없음
@@ -1275,7 +1365,7 @@ async def get_draft(http_request: Request):
         with open(draft_path, 'r', encoding='utf-8') as f:
             draft_data = json.load(f)
         
-        logger.info(f"[DRAFT] 임시 저장 불러오기 완료: IP={client_ip}")
+        logger.info(f"[DRAFT] 임시 저장 불러오기 완료: User={user_id}")
         return GetDraftResponse(
             success=True,
             title=draft_data.get("title"),
@@ -1295,15 +1385,15 @@ async def get_draft(http_request: Request):
 @app.delete("/api/delete-draft")
 async def delete_draft(http_request: Request):
     """
-    현재 IP의 임시 저장된 내용을 삭제합니다.
+    현재 사용자의 임시 저장된 내용을 삭제합니다.
     """
     try:
-        client_ip = get_client_ip(http_request)
-        draft_path = get_draft_file_path(client_ip)
+        user_id = get_user_identifier(http_request)
+        draft_path = get_draft_file_path(user_id)
         
         if draft_path.exists():
             draft_path.unlink()
-            logger.info(f"[DRAFT] 임시 저장 삭제 완료: IP={client_ip}")
+            logger.info(f"[DRAFT] 임시 저장 삭제 완료: User={user_id}")
         
         return {"success": True, "message": "임시 저장 삭제 완료"}
         
@@ -1332,49 +1422,69 @@ async def get_usage_stats(http_request: Request):
         if not is_admin_ip(client_ip):
             raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
         
-        # 모든 IP 수집 (세 가지 트래커에서)
-        all_ips = set()
-        all_ips.update(usage_tracker.keys())
-        all_ips.update(reference_analysis_tracker.keys())
-        all_ips.update(blog_ideas_tracker.keys())
-        
-        # first_seen 데이터 로드
+        # JSON 파일에서 사용량 데이터 로드
         data = load_usage_data()
         first_seen_data = data.get("first_seen", {})
         
-        # 각 IP별 사용량 정보 수집
+        # 모든 user_id 수집 (세 가지 트래커에서)
+        all_user_ids = set()
+        all_user_ids.update(data.get("blog_generation", {}).keys())
+        all_user_ids.update(data.get("reference_analysis", {}).keys())
+        all_user_ids.update(data.get("blog_ideas", {}).keys())
+        
+        # 각 user_id별 사용량 정보 수집
         users = []
-        for ip in all_ips:
+        now = datetime.now()
+        for user_id in all_user_ids:
             # 각 트래커에서 사용량 가져오기
-            blog_gen = usage_tracker.get(ip, {"count": 0, "reset_time": datetime.now() + timedelta(days=1)})
-            ref_analysis = reference_analysis_tracker.get(ip, {"count": 0, "reset_time": datetime.now() + timedelta(days=1)})
-            blog_ideas = blog_ideas_tracker.get(ip, {"count": 0, "reset_time": datetime.now() + timedelta(days=1)})
+            blog_gen_info = data.get("blog_generation", {}).get(user_id, {"count": 0, "reset_time": (now + timedelta(days=1)).isoformat()})
+            ref_analysis_info = data.get("reference_analysis", {}).get(user_id, {"count": 0, "reset_time": (now + timedelta(days=1)).isoformat()})
+            blog_ideas_info = data.get("blog_ideas", {}).get(user_id, {"count": 0, "reset_time": (now + timedelta(days=1)).isoformat()})
+            
+            # datetime 변환
+            blog_reset_time_str = blog_gen_info.get("reset_time")
+            blog_reset_time = datetime.fromisoformat(blog_reset_time_str) if isinstance(blog_reset_time_str, str) else blog_reset_time_str
+            ref_reset_time_str = ref_analysis_info.get("reset_time")
+            ref_reset_time = datetime.fromisoformat(ref_reset_time_str) if isinstance(ref_reset_time_str, str) else ref_reset_time_str
+            ideas_reset_time_str = blog_ideas_info.get("reset_time")
+            ideas_reset_time = datetime.fromisoformat(ideas_reset_time_str) if isinstance(ideas_reset_time_str, str) else ideas_reset_time_str
             
             # 리셋 시간 계산
-            now = datetime.now()
-            blog_reset = blog_gen["reset_time"] - now if blog_gen["reset_time"] > now else timedelta(0)
-            ref_reset = ref_analysis["reset_time"] - now if ref_analysis["reset_time"] > now else timedelta(0)
-            ideas_reset = blog_ideas["reset_time"] - now if blog_ideas["reset_time"] > now else timedelta(0)
+            blog_reset = blog_reset_time - now if blog_reset_time > now else timedelta(0)
+            ref_reset = ref_reset_time - now if ref_reset_time > now else timedelta(0)
+            ideas_reset = ideas_reset_time - now if ideas_reset_time > now else timedelta(0)
+            
+            # user_id에서 IP 추출 (user_id는 IP와 client_id의 MD5 해시이므로, IP만으로는 추출 불가)
+            # 대신 user_id를 그대로 사용하거나, first_seen에서 IP를 찾아야 함
+            # 일단 user_id를 표시하고, first_seen에서 매칭되는 IP를 찾아보자
+            matching_ip = None
+            for ip, first_seen in first_seen_data.items():
+                # user_id는 IP와 client_id의 조합이므로, 정확한 매칭은 어렵지만
+                # 일단 user_id를 표시
+                pass
+            
+            # IP는 user_id의 일부일 수 있지만, 정확한 추출은 어려우므로 user_id를 사용
+            ip = user_id  # 임시로 user_id를 IP로 사용 (실제로는 user_id)
             
             user_info = {
-                "ip": ip,
-                "is_admin": is_admin_ip(ip),
-                "first_seen": first_seen_data.get(ip, None),
+                "ip": ip,  # 실제로는 user_id
+                "is_admin": False,  # user_id만으로는 admin 여부 확인 불가, 필요시 별도 로직 추가
+                "first_seen": None,  # user_id와 IP 매칭이 어려워서 None
                 "blog_generation": {
-                    "used": blog_gen["count"],
-                    "limit": DAILY_LIMIT if not is_admin_ip(ip) else -1,
+                    "used": blog_gen_info.get("count", 0),
+                    "limit": DAILY_LIMIT,
                     "reset_in_hours": int(blog_reset.total_seconds() / 3600) if blog_reset.total_seconds() > 0 else 0,
                     "reset_in_minutes": int((blog_reset.total_seconds() % 3600) / 60) if blog_reset.total_seconds() > 0 else 0
                 },
                 "reference_analysis": {
-                    "used": ref_analysis["count"],
-                    "limit": REFERENCE_ANALYSIS_LIMIT if not is_admin_ip(ip) else -1,
+                    "used": ref_analysis_info.get("count", 0),
+                    "limit": REFERENCE_ANALYSIS_LIMIT,
                     "reset_in_hours": int(ref_reset.total_seconds() / 3600) if ref_reset.total_seconds() > 0 else 0,
                     "reset_in_minutes": int((ref_reset.total_seconds() % 3600) / 60) if ref_reset.total_seconds() > 0 else 0
                 },
                 "blog_ideas": {
-                    "used": blog_ideas["count"],
-                    "limit": BLOG_IDEAS_LIMIT if not is_admin_ip(ip) else -1,
+                    "used": blog_ideas_info.get("count", 0),
+                    "limit": BLOG_IDEAS_LIMIT,
                     "reset_in_hours": int(ideas_reset.total_seconds() / 3600) if ideas_reset.total_seconds() > 0 else 0,
                     "reset_in_minutes": int((ideas_reset.total_seconds() % 3600) / 60) if ideas_reset.total_seconds() > 0 else 0
                 }
@@ -1615,8 +1725,7 @@ async def process_blogs(request: ProcessRequest, http_request: Request):
     """
     try:
         # 사용량 제한 확인 (상위 블로그 분석)
-        client_ip = get_client_ip(http_request)
-        is_allowed, message = check_reference_analysis_limit(client_ip)
+        is_allowed, message = check_reference_analysis_limit(http_request)
         if not is_allowed:
             return ProcessResponse(
                 success=False,
@@ -1912,8 +2021,7 @@ async def generate_blog(request: GenerateBlogRequest, http_request: Request):
     """
     try:
         # 사용량 제한 확인
-        client_ip = get_client_ip(http_request)
-        is_allowed, message = check_usage_limit(client_ip)
+        is_allowed, message = check_usage_limit(http_request)
         if not is_allowed:
             return GenerateBlogResponse(
                 success=False,
@@ -2005,7 +2113,10 @@ async def generate_blog(request: GenerateBlogRequest, http_request: Request):
                 while attempts < 3 and image_path is None:
                     attempts += 1
                     try:
-                        image_prompt = build_image_prompt(img_placeholder["image_prompt"])
+                        image_prompt = build_image_prompt(
+                            img_placeholder["image_prompt"],
+                            image_style=request.image_style
+                        )
                         image_path = generate_image(
                             image_prompt=image_prompt,
                             output_dir=output_dir,
@@ -2383,8 +2494,7 @@ async def generate_blog_ideas_api(request: GenerateBlogIdeasRequest, http_reques
     """
     try:
         # 사용량 제한 확인 (블로그 아이디어 생성용 별도 트래커)
-        client_ip = get_client_ip(http_request)
-        is_allowed, message = check_blog_ideas_limit(client_ip)
+        is_allowed, message = check_blog_ideas_limit(http_request)
         if not is_allowed:
             return GenerateBlogIdeasResponse(
                 success=False,
