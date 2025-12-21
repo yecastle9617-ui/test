@@ -95,9 +95,9 @@
                     <div class="form-group">
                         <label class="required">블로그 레벨</label>
                         <select id="generate-blog-level" required>
-                            <option value="new">신규 (2000~2500자)</option>
-                            <option value="mid" selected>중급 (2500~3000자)</option>
-                            <option value="high">고지수 (3000~3500자 이상)</option>
+                            <option value="new">신규</option>
+                            <option value="mid" selected>중급</option>
+                            <option value="high">고지수</option>
                         </select>
                         <small class="form-help">글의 길이와 상세도를 선택하세요. 고지수 레벨은 FAQ와 더 많은 섹션을 포함합니다.</small>
                     </div>
@@ -283,7 +283,7 @@
                     <!-- 네이버 발행용 파일 다운로드 버튼 -->
                     <div class="editor-section">
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <button id="export-blog-btn" class="btn-export" onclick="handleExportBlog()">
+                            <button id="export-blog-btn" class="btn-export" onclick="handleExportBlog()" style="display: none;">
                                 발행용 파일 다운로드
                             </button>
                             <button id="download-images-btn" class="btn-export" onclick="handleDownloadImages()" style="display: inline-block;">

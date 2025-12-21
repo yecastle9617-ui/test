@@ -1,0 +1,42 @@
+services:
+  backend:
+    build:
+      context: ./dmalab_back
+      dockerfile: Dockerfile
+    container_name: dmalab-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # 코드 변경 시 자동 반영 (개발용)
+      - ./dmalab_back:/app
+      # 데이터 디렉토리 마운트
+      - ./dmalab_back/data:/app/data
+      - ./dmalab_back/naver_crawler:/app/naver_crawler
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    # .env 파일이 있다면 사용
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - dmalab-network
+
+  frontend:
+    build:
+      context: ./dmalab_front
+      dockerfile: Dockerfile
+    container_name: dmalab-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      # 코드 변경 시 자동 반영 (개발용)
+      - ./dmalab_front:/app
+    restart: unless-stopped
+    networks:
+      - dmalab-network
+
+networks:
+  dmalab-network:
+    driver: bridge
+

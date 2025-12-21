@@ -1635,6 +1635,60 @@ async function handleGenerateBlog() {
             throw new Error(data.error || '블로그 생성 실패');
         }
 
+        // 디버깅: API 응답의 실제 글자 수 확인
+        if (data.blog_content) {
+            let totalChars = 0;
+            const content = data.blog_content;
+            
+            // introduction 글자 수
+            if (content.introduction && content.introduction.content) {
+                totalChars += content.introduction.content.length;
+            }
+            
+            // body 글자 수
+            if (content.body && Array.isArray(content.body)) {
+                content.body.forEach(section => {
+                    if (section.subtitle && section.subtitle.content) {
+                        totalChars += section.subtitle.content.length;
+                    }
+                    if (section.blocks && Array.isArray(section.blocks)) {
+                        section.blocks.forEach(block => {
+                            if (block.content) {
+                                totalChars += block.content.length;
+                            }
+                            if (block.items && Array.isArray(block.items)) {
+                                block.items.forEach(item => {
+                                    if (typeof item === 'string') {
+                                        totalChars += item.length;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // conclusion 글자 수
+            if (content.conclusion && content.conclusion.content) {
+                totalChars += content.conclusion.content.length;
+            }
+            
+            // FAQ 글자 수
+            if (content.faq && Array.isArray(content.faq)) {
+                content.faq.forEach(faq => {
+                    if (faq.q && faq.q.content) {
+                        totalChars += faq.q.content.length;
+                    }
+                    if (faq.a && faq.a.content) {
+                        totalChars += faq.a.content.length;
+                    }
+                });
+            }
+            
+            console.log('[블로그 생성] API 응답 글자 수:', totalChars);
+            console.log('[블로그 생성] 블로그 레벨:', blogLevel);
+        }
+
         // 블로그 글 생성 완료 (백엔드 응답 수신 시)
         // 현재 진행률이 70% 미만이면 부드럽게 70%까지 증가 (최소 1초는 진행률 증가)
         const targetProgress = 70;
@@ -3629,6 +3683,14 @@ function loadBlogContentToQuill(content) {
 
     // 본문을 Quill에 설정
     quillBody.setContents({ ops: bodyOps });
+    
+    // 디버깅: 에디터에 로드된 실제 글자 수 확인
+    setTimeout(() => {
+        const editorText = quillBody.getText();
+        const editorTextLength = editorText.trim().length;
+        console.log('[에디터 로드] 에디터에 표시된 글자 수:', editorTextLength);
+        console.log('[에디터 로드] 에디터 텍스트 미리보기 (처음 200자):', editorText.substring(0, 200));
+    }, 200);
     
     // 콘텐츠 로드 후 자동 저장 및 높이 재계산
     setTimeout(() => {

@@ -5,11 +5,21 @@ GPT API를 사용하여 블로그 글을 생성하는 모듈
 
 import json
 import os
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
+
+# 로거 설정
+logger = logging.getLogger("dmalab.blog.gpt_generator")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 # .env 파일 로드 (프로젝트 루트에서)
 current_dir = Path(__file__).parent
@@ -130,14 +140,33 @@ def build_user_prompt(
     user_template = template.get("user_prompt_template", [])
     user_prompt = "\n".join(user_template)
     
-    # 레벨별 글자 수 요구사항 동적 생성
+    # 레벨별 글자 수 요구사항 동적 생성 (더 강화된 버전)
     char_count_requirement = ""
     if blog_level == "new":
-        char_count_requirement = "- **new 레벨: 최소 2000자, 목표 2200~2400자** (JSON 구조 제외 순수 텍스트만 계산)\n  - introduction.content + body의 모든 subtitle.content와 blocks.content + conclusion.content의 합계"
+        char_count_requirement = (
+            "- **new 레벨: 최소 2000자, 목표 2200~2400자** (JSON 구조 제외 순수 텍스트만 계산)\n"
+            "  - introduction.content + body의 모든 subtitle.content와 blocks.content + conclusion.content의 합계\n"
+            "  - ⚠️ 매우 중요: 반드시 2000자 이상이어야 합니다. 2000자 미만이면 생성이 실패한 것입니다.\n"
+            "  - 각 paragraph block은 최소 200~300자 이상으로 충분히 길게 작성하세요.\n"
+            "  - body 섹션에는 최소 3개 이상의 subtitle과 각 subtitle 아래에 최소 2~3개의 paragraph block이 필요합니다."
+        )
     elif blog_level == "mid":
-        char_count_requirement = "- **mid 레벨: 최소 2500자, 목표 2700~2900자** (JSON 구조 제외 순수 텍스트만 계산)\n  - introduction.content + body의 모든 subtitle.content와 blocks.content + conclusion.content의 합계"
+        char_count_requirement = (
+            "- **mid 레벨: 최소 2500자, 목표 2700~2900자** (JSON 구조 제외 순수 텍스트만 계산)\n"
+            "  - introduction.content + body의 모든 subtitle.content와 blocks.content + conclusion.content의 합계\n"
+            "  - ⚠️ 매우 중요: 반드시 2500자 이상이어야 합니다. 2500자 미만이면 생성이 실패한 것입니다.\n"
+            "  - 각 paragraph block은 최소 250~350자 이상으로 충분히 길게 작성하세요.\n"
+            "  - body 섹션에는 최소 4개 이상의 subtitle과 각 subtitle 아래에 최소 3~4개의 paragraph block이 필요합니다."
+        )
     elif blog_level == "high":
-        char_count_requirement = "- **high 레벨: 최소 3000자, 목표 3200~3400자** (JSON 구조 제외 순수 텍스트만 계산)\n  - introduction.content + body의 모든 subtitle.content와 blocks.content + conclusion.content + FAQ의 모든 q.content와 a.content의 합계"
+        char_count_requirement = (
+            "- **high 레벨: 최소 3000자, 목표 3200~3400자** (JSON 구조 제외 순수 텍스트만 계산)\n"
+            "  - introduction.content + body의 모든 subtitle.content와 blocks.content + conclusion.content + FAQ의 모든 q.content와 a.content의 합계\n"
+            "  - ⚠️ 매우 중요: 반드시 3000자 이상이어야 합니다. 3000자 미만이면 생성이 실패한 것입니다.\n"
+            "  - 각 paragraph block은 최소 300~400자 이상으로 충분히 길게 작성하세요.\n"
+            "  - body 섹션에는 최소 5개 이상의 subtitle과 각 subtitle 아래에 최소 3~4개의 paragraph block이 필요합니다.\n"
+            "  - FAQ 섹션에는 최소 3개 이상의 질문-답변 쌍이 필요하며, 각 답변은 최소 200자 이상이어야 합니다."
+        )
     
     # 변수 치환
     user_prompt = user_prompt.replace("{{keywords}}", keywords)
@@ -163,6 +192,55 @@ def build_user_prompt(
     user_prompt = user_prompt.replace("{{external_links}}", external_links_str)
     
     return user_prompt
+
+
+def calculate_blog_char_count(blog_content: Dict[str, Any]) -> int:
+    """
+    블로그 콘텐츠의 총 글자 수를 계산합니다.
+    
+    Args:
+        blog_content: 블로그 콘텐츠 JSON 딕셔너리
+    
+    Returns:
+        총 글자 수
+    """
+    total_chars = 0
+    
+    # introduction 글자 수
+    if blog_content.get("introduction") and blog_content["introduction"].get("content"):
+        total_chars += len(blog_content["introduction"]["content"])
+    
+    # body 글자 수
+    if blog_content.get("body") and isinstance(blog_content["body"], list):
+        for section in blog_content["body"]:
+            # subtitle 글자 수
+            if section.get("subtitle") and section["subtitle"].get("content"):
+                total_chars += len(section["subtitle"]["content"])
+            
+            # blocks 글자 수
+            if section.get("blocks") and isinstance(section["blocks"], list):
+                for block in section["blocks"]:
+                    if block.get("content"):
+                        total_chars += len(block["content"])
+                    # list items 글자 수
+                    if block.get("items") and isinstance(block["items"], list):
+                        for item in block["items"]:
+                            if isinstance(item, str):
+                                total_chars += len(item)
+    
+    # conclusion 글자 수
+    if blog_content.get("conclusion") and blog_content["conclusion"].get("content"):
+        total_chars += len(blog_content["conclusion"]["content"])
+    
+    # FAQ 글자 수
+    if blog_content.get("faq") and isinstance(blog_content["faq"], list):
+        for faq in blog_content["faq"]:
+            if faq.get("q") and faq["q"].get("content"):
+                total_chars += len(faq["q"]["content"])
+            if faq.get("a") and faq["a"].get("content"):
+                total_chars += len(faq["a"]["content"])
+    
+    return total_chars
 
 
 def get_max_tokens_for_level(blog_level: str) -> int:
@@ -265,6 +343,23 @@ def generate_blog_content(
         
         # JSON 파싱
         blog_content = json.loads(content)
+        
+        # 글자 수 계산 및 로깅
+        char_count = calculate_blog_char_count(blog_content)
+        min_chars = {"new": 2000, "mid": 2500, "high": 3000}.get(blog_level, 2000)
+        
+        logger.info(
+            f"[GENERATE] 블로그 콘텐츠 생성 완료 - "
+            f"레벨: {blog_level}, 글자 수: {char_count}, 최소 요구사항: {min_chars}"
+        )
+        
+        if char_count < min_chars:
+            logger.warning(
+                f"[GENERATE] ⚠️ 글자 수 부족 - "
+                f"실제: {char_count}자, 요구: {min_chars}자, 부족: {min_chars - char_count}자"
+            )
+        else:
+            logger.info(f"[GENERATE] ✓ 글자 수 요구사항 충족 - {char_count}자 (요구: {min_chars}자)")
         
         return blog_content
         
